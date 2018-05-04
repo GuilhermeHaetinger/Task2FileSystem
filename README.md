@@ -1,6 +1,6 @@
-# **Operating System First Task**
+# **Operating System Second Task**
 
-First Task of the Operating System 1 Course from UFRGS
+Second Task of the Operating System 1 Course from UFRGS
 
 ## **Getting Started**
 
