@@ -5,7 +5,7 @@
 #include "../include/t2fs.h"
 #include "../include/LGA_logger.h"
 #include "../include/LGA_support.h"
-
+#include "../include/apidisk.h"
 
 /*-----------------------------------------------------------------------------
 Fun��o: Usada para identificar os desenvolvedores do T2FS.
@@ -51,7 +51,8 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
-    ///TODO
+    
+
     return FAILED;
 }
 
