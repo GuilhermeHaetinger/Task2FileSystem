@@ -5,13 +5,16 @@
 #include "../include/t2fs.h"
 #include "../include/LGA_logger.h"
 
+#define SECTOR_SIZE 256
+
+
 int main(char* args[], int* argv){
     
-    struct t2fs_superbloco * super = malloc(sizeof(struct t2fs_superbloco));
+    char * super = malloc(SECTOR_SIZE);
 
-    if(read_sector(0, (char*)super)){
+    if(read_sector(0, super) == 0){
         LGA_LOGGER_TEST("Leu corretamente");
-        printf("%c", super->id[0]);
+        printf("%c", ((struct t2fs_superbloco * )super)->id[0]);
         
     }else{
         LGA_LOGGER_ERROR("Leu incorretamente");
@@ -19,5 +22,3 @@ int main(char* args[], int* argv){
     
     return 0;
 }
-
-
