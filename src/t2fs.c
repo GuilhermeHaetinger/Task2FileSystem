@@ -3,9 +3,10 @@
 #include <stdlib.h>
 
 #include "../include/t2fs.h"
+#include "../include/apidisk.h"
 #include "../include/LGA_logger.h"
 #include "../include/LGA_support.h"
-#include "../include/apidisk.h"
+#include "../include/bitmap2.h"
 
 /*-----------------------------------------------------------------------------
 Fun��o: Usada para identificar os desenvolvedores do T2FS.
@@ -51,9 +52,32 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
-    
+	
+	if(checkAndReadSuperBlock() != 0){
+		LGA_LOGGER_ERROR("SuperBlock not properly read");
+		return FAILED;
+	}
 
-    return FAILED;
+	FileRecord file;
+	DWORD inodePos = searchBitmap2(INODE_SEARCH, 0);
+	file.TypeVal = TYPEVAL_REGULAR;
+    strncpy(file.name, filename, 59);
+	file.inodeNumber = inodePos;
+
+	Inode * fileInode;
+	fileInode->blocksFileSize = 3;
+	fileInode->bytesFileSize = 0;	
+	fileInode->dataPtr[2] = (DWORD[2]){0, 0};		
+	fileInode->singleIndPtr = 0;   
+	fileInode->doubleIndPtr = 0;   
+	fileInode->reservado[2] = (DWORD[2]){0, 0};
+
+	if(saveInode(inodePos, (char *)fileInode) != 0){
+		LGA_LOGGER_ERROR("Inode not saved properly");
+		return FAILED;
+	}
+
+    return addFileToOpenFiles(file);
 }
 
 

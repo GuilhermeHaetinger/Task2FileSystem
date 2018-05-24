@@ -5,27 +5,17 @@
 #include "../include/t2fs.h"
 #include "../include/LGA_logger.h"
 
-typedef struct t2fs_superbloco superBloco;
-
-int main(){
+int main(char* args[], int* argv){
     
-    superBloco superBlock;
-
-    unsigned char buffer[SECTOR_SIZE];
-
-	if(read_sector(0, buffer) != 0){
-		printf("Error: Failed reading sector 0!\n");
-		return -1;
-	}
-
-	strncpy(superBlock.id, (char*)buffer, 4);
-	superBlock.version = *( (DWORD*)(buffer + 4) );
-	superBlock.superblockSize = *( (WORD*)(buffer + 6) );
-	superBlock.freeBlocksBitmapSize = *( (WORD*)(buffer + 8) ); 
-	superBlock.freeInodeBitmapSize = *( (WORD*)(buffer + 10) );
-	superBlock.inodeAreaSize = *( (WORD*)(buffer + 12) );
-	superBlock.blockSize = *( (WORD*)(buffer + 14) );
-	superBlock.diskSize = *( (DWORD*)(buffer + 16) );
-
-	return 0;
+    char super[SECTOR_SIZE];
+    
+    if(read_sector(0, super) == 0){
+        LGA_LOGGER_TEST("Leu corretamente");
+        printf("%c", ((struct t2fs_superbloco * )super)->id[0]);
+        
+    }else{
+        LGA_LOGGER_TEST("Leu incorretamente");
+    }
+    
+    return 0;
 }
