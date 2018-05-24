@@ -53,30 +53,34 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
 	
-	if(checkAndReadSuperBlock() != 0){
+	if(initializeSuperBlock() != 0){
 		LGA_LOGGER_ERROR("SuperBlock not properly read");
 		return FAILED;
 	}
 
+
+	LGA_LOGGER_LOG("SuperBlock initialized");
+
 	FileRecord file;
+	
+	LGA_LOGGER_LOG("Searching for inode position");
+
 	DWORD inodePos = searchBitmap2(INODE_SEARCH, 0);
 	file.TypeVal = TYPEVAL_REGULAR;
     strncpy(file.name, filename, 59);
 	file.inodeNumber = inodePos;
 
-	Inode * fileInode;
-	fileInode->blocksFileSize = 3;
-	fileInode->bytesFileSize = 0;	
-	fileInode->dataPtr[2] = (DWORD[2]){0, 0};		
-	fileInode->singleIndPtr = 0;   
-	fileInode->doubleIndPtr = 0;   
-	fileInode->reservado[2] = (DWORD[2]){0, 0};
+	LGA_LOGGER_LOG("Creating inode");
 
-	if(saveInode(inodePos, (char *)fileInode) != 0){
+	Inode fileInode;
+
+
+	if(saveInode(inodePos, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("Inode not saved properly");
 		return FAILED;
 	}
 
+	LGA_LOGGER_LOG("Adding record to open file vector");
     return addFileToOpenFiles(file);
 }
 

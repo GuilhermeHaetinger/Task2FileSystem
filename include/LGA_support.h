@@ -23,20 +23,22 @@ typedef struct t2fs_superbloco SuperBlock;
 typedef struct t2fs_record FileRecord;
 typedef struct t2fs_inode Inode;
 
+typedef struct RecordHandlerStruct{
+
+    int CP;
+    FileRecord file;
+
+} recordHandler;
+
 /*  dados   */
 SuperBlock superBlock;
 bool superBlockRead;
 
 
-FileRecord openFiles[MAX_NUM_OF_OPEN_FILES];
-FileRecord openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
-
-int openFilesHandler = 0;
-int openDirectoriesHandler = 0;
+recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
+recordHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 
 int inodeSectorIndex;
-
-WORD CP = 0;
 
 
 /*  funções   */
@@ -47,7 +49,7 @@ WORD CP = 0;
  * 0  -> caso tenha sido bem sucedido 
  * -1 -> caso tenha falhado 
 */
-int checkAndReadSuperBlock();
+int initializeSuperBlock();
 
 
 /*
@@ -70,6 +72,18 @@ int readSuperblock();
  * -1 -> caso tenha falhado 
 */
 int writeBlock(int initialSector, char* data);
+
+
+/*
+ * Lê um bloco de dados escrito no disco
+ * @params:
+ * initialSector -> setor inicial de leitura
+ * data          -> espaço alocado para armazenamento dos dados lidos
+ * returns:
+ * 0  -> caso tenha sido bem sucedido 
+ * -1 -> caso tenha falhado 
+*/
+int readBlock(int initialSector, char* data);
 
 
 /*
@@ -115,4 +129,4 @@ int getSavedInode(DWORD inodePos, char* data);
  *  >= 0 -> caso adicione propriamente (handler do registro)
  *  < 0  -> caso não há mais espaço
 */
-int addFileToOpenFiles(FileRecord file);
+FILE2 addFileToOpenFiles(FileRecord file);

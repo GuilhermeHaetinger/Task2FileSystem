@@ -1,7 +1,7 @@
 LIB_DIR=../lib
 BIN_DIR=../bin
 SRC_DIR=../src
-TST_DIR=../testes
+TST_DIR=../test
 BUILD_DIR=build
 
 all:

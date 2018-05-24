@@ -302,5 +302,6 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 -----------------------------------------------------------------------------*/
 int closedir2 (DIR2 handle);
 
+int testInode(FILE2 hand);
 
 #endif
