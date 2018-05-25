@@ -19,15 +19,15 @@ int inodeWritingTest(){
     Inode inode;
     LGA_LOGGER_TEST("Setting blockFileSize value to 3");
     inode.blocksFileSize = 3;
-    
-	DWORD inodePos = searchBitmap2(INODE_SEARCH, 0);
+
+	  DWORD inodePos = searchBitmap2(INODE_TYPE, 0);
     LGA_LOGGER_TEST("Saving INODE");
     if(saveInode(inodePos, (char *)&inode) != SUCCEEDED){
         LGA_LOGGER_TEST("Saving INODE failed");
         return FAILED;
     }
     LGA_LOGGER_TEST("Saving INODE succeded");
-    
+
     char test[INODE_SIZE];
 
     LGA_LOGGER_TEST("REcovering INODE");
@@ -44,7 +44,7 @@ int inodeWritingTest(){
 
     LGA_LOGGER_TEST("Inode test SUCCEDED");
     return SUCCEEDED;
-    
+
 }
 
 int blockWritingTest(){
@@ -54,7 +54,7 @@ int blockWritingTest(){
 
     LGA_LOGGER_TEST("Setting testingText");
     strcpy(testingText, "Hello World");
-      
+
     LGA_LOGGER_TEST("Getting first block's sector number");
     int firstBlockSector = (superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + superBlock.inodeAreaSize) * superBlock.blockSize + 1;
 

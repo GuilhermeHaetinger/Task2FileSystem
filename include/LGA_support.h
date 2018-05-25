@@ -12,9 +12,11 @@
 #define MAX_NUM_OF_OPEN_FILES 10
 #define MAX_NUM_OF_OPEN_DIRECTORIES 50
 
-#define INODE_SEARCH 0
-#define BLOCK_SEARCH 1
+#define INODE_TYPE 0
+#define BLOCK_TYPE 1
 
+#define INODE_BUSY 1
+#define INODE_FREE 0
 #define INODE_SIZE 32
 
 
@@ -46,8 +48,8 @@ int inodeSectorIndex;
 /*
  * Verifica se o superbloco já foi inicializado e, caso não, o inicializa
  * returns:
- * 0  -> caso tenha sido bem sucedido 
- * -1 -> caso tenha falhado 
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
 */
 int initializeSuperBlock();
 
@@ -55,8 +57,8 @@ int initializeSuperBlock();
 /*
  * Inicializa o superbloco
  * returns:
- * 0  -> caso tenha sido bem sucedido 
- * -1 -> caso tenha falhado 
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
  * -2 -> caso o superbloco já tenha sido inicializado
 */
 int readSuperblock();
@@ -68,8 +70,8 @@ int readSuperblock();
  * initialSector -> setor inicial de escrita
  * data          -> dados a serem escritos
  * returns:
- * 0  -> caso tenha sido bem sucedido 
- * -1 -> caso tenha falhado 
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
 */
 int writeBlock(int initialSector, char* data);
 
@@ -80,8 +82,8 @@ int writeBlock(int initialSector, char* data);
  * initialSector -> setor inicial de leitura
  * data          -> espaço alocado para armazenamento dos dados lidos
  * returns:
- * 0  -> caso tenha sido bem sucedido 
- * -1 -> caso tenha falhado 
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
 */
 int readBlock(int initialSector, char* data);
 
@@ -130,3 +132,10 @@ int getSavedInode(DWORD inodePos, char* data);
  *  < 0  -> caso não há mais espaço
 */
 FILE2 addFileToOpenFiles(FileRecord file);
+
+/*
+ * Busca a posição do primeiro inode free
+ * returns:
+ * int -> posição no bitmap
+*/
+int getFreeNode();

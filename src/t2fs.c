@@ -52,9 +52,9 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
-	
+
 	if(initializeSuperBlock() != 0){
-		LGA_LOGGER_ERROR("SuperBlock not properly read");
+		LGA_LOGGER_ERROR("SuperBlock not properly initiated");
 		return FAILED;
 	}
 
@@ -62,12 +62,14 @@ FILE2 create2 (char *filename){
 	LGA_LOGGER_LOG("SuperBlock initialized");
 
 	FileRecord file;
-	
+
 	LGA_LOGGER_LOG("Searching for inode position");
 
-	DWORD inodePos = searchBitmap2(INODE_SEARCH, 0);
+	DWORD inodePos = getFreeNode();
+  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+
 	file.TypeVal = TYPEVAL_REGULAR;
-    strncpy(file.name, filename, 59);
+  strncpy(file.name, filename, 59);
 	file.inodeNumber = inodePos;
 
 	LGA_LOGGER_LOG("Creating inode");
@@ -81,7 +83,7 @@ FILE2 create2 (char *filename){
 	}
 
 	LGA_LOGGER_LOG("Adding record to open file vector");
-    return addFileToOpenFiles(file);
+  return addFileToOpenFiles(file);
 }
 
 
