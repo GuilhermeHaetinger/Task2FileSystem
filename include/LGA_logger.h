@@ -1,3 +1,4 @@
+#define LGA_DEBUG 4
 #define LGA_LOG 3
 #define LGA_WARNING 2
 #define LGA_ERROR 1
@@ -26,6 +27,8 @@ void LGA_LOGGER_ERROR(char * text);
 void LGA_LOGGER_WARNING(char * text);
 
 void LGA_LOGGER_IMPORTANT(char * text);
+
+void LGA_LOGGER_DEBUG(char * text);
 
 int LGA_GET_ENV_LOGGER();
 

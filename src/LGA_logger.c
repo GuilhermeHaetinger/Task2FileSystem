@@ -92,6 +92,23 @@ void LGA_LOGGER_IMPORTANT(char * text) {
 };
 
 /**
+ * Log a Debug Log to the final user
+ * @param text WarningText
+ */
+void LGA_LOGGER_DEBUG(char * text) {
+  if(LGA_LOGGER_STATUS_ENV >= LGA_DEBUG) {
+    char *debugText = calloc(strlen(text) + 6, sizeof(char));
+    strcat(debugText, text);
+    strcat(debugText, "\n");
+
+    printf(ANSI_COLOR_CYAN "[DEBUG] " ANSI_COLOR_RESET);
+    printf("%s", debugText);
+
+    free(debugText);
+  }
+};
+
+/**
  * Get the LGA_LOGGER Environment variable
  * @return [description]
  */
