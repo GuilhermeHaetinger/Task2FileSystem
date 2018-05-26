@@ -8,10 +8,12 @@
 #include "../include/LGA_support.h"
 #include "../include/apidisk.h"
 #include "../include/t2fs.h"
+#include "../include/bitmap2.h"
 
 int openFilesHandler = 0;
 int openDirectoriesHandler = 0;
-
+int INODE_SECTOR_INDEX;
+int INODE_PER_SECTOR;
 
 int initializeSuperBlock(){
   if(!superBlockRead){
@@ -37,8 +39,9 @@ int readSuperblock(){
 
     superBlock = *((SuperBlock*)buffer);
 
-    inodeSectorIndex = (superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + 1) * superBlock.blockSize;
+    INODE_SECTOR_INDEX = (superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + 1) * superBlock.blockSize;
 
+    INODE_PER_SECTOR = SECTOR_SIZE/INODE_SIZE;
     superBlockRead = true;
 
     LGA_LOGGER_LOG("Superblock written correctly");
@@ -50,6 +53,10 @@ int readSuperblock(){
 }
 
 int writeBlock(int initialSector, char* data){
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+    return FAILED;
+  }
   int dataSize = sizeof(data);
 
   if(blockIsInAcceptableSize(data)){
@@ -84,6 +91,10 @@ int writeBlock(int initialSector, char* data){
 }
 
 int readBlock(int initialSector, char* data){
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+    return FAILED;
+  }
   int dataSize = sizeof(data);
 
   if(blockIsInAcceptableSize(data)){
@@ -131,68 +142,54 @@ bool blockIsInAcceptableSize(char* data){
 }
 
 int saveInode(DWORD inodePos, char* data){
-  int inodesPerSector = SECTOR_SIZE/INODE_SIZE;
-
-  int inodeSectorPos = floor(inodePos/inodesPerSector);
-
-  char inodeSector[SECTOR_SIZE];
-
-  LGA_LOGGER_LOG("reading inode sector");
-  if(read_sector(inodeSectorIndex + inodeSectorPos, inodeSector) != 0){
-    LGA_LOGGER_ERROR("inode sector not read properly");
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
     return FAILED;
   }
-  LGA_LOGGER_LOG("inode sector read properly");
 
-  int offset = inodePos - (inodesPerSector * inodeSectorPos);
+  int inodeSectorPos = getSectorIndexInode(inodePos);
+  printf("%d\n",inodeSectorPos );
 
+  char diskSector[SECTOR_SIZE];
+  LGA_LOGGER_LOG("[saveInode] Reading inode sector");
+  if(read_sector(inodeSectorPos, diskSector) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[saveInode] inode sector not read properly");
+    return FAILED;
+  }
+  LGA_LOGGER_LOG("[saveInode] inode sector read properly");
+
+  int offset = getOffsetInode(inodePos);
+  printf("%d\n",offset );
 
   char sectorData[SECTOR_SIZE];
-
-  int i, j;
-  LGA_LOGGER_LOG("Entering Inode writing loop");
-  for(i = 0; i < inodesPerSector; i++){
-    for(j = 0; j < INODE_SIZE; j++){
-
-      //Se entramos no inode na posição de offset, o escrevemos
-      if(i == offset){
-        sectorData[i * INODE_SIZE + j] = data[j];
-
-      //Caso o contrário, escrevemos o que já havia em disco
-      }else{
-        sectorData[i * INODE_SIZE + j] = inodeSector[i * INODE_SIZE + j];
-
-      }
-    }
-  }
-
-  LGA_LOGGER_LOG("writing new inode block");
-  write_sector(inodeSectorIndex + inodeSectorPos, sectorData);
-
-  char bufferTest[INODE_SIZE];
-  for(i=0; i<INODE_SIZE; i++){
-    bufferTest[i] = sectorData[i + offset * INODE_SIZE];
-  }
+  changeSector(offset, data, diskSector, sectorData);
+  LGA_LOGGER_LOG("[saveInode] writing new inode block");
+  write_sector(inodeSectorPos, sectorData);
 
   return SUCCEEDED;
-
 }
 
 int getSavedInode(DWORD inodePos, char* data){
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+    return FAILED;
+  }
+  
   int inodesPerSector = SECTOR_SIZE/INODE_SIZE;
 
-  int inodeSectorPos = inodePos/inodesPerSector;
+  int inodeSectorPos = getSectorIndexInode(inodePos);
 
   char inodeSector[SECTOR_SIZE];
-
+  printf("%d\n",inodeSectorPos );
   LGA_LOGGER_LOG("reading inode sector");
-  if(read_sector(inodeSectorIndex + inodeSectorPos, inodeSector) != 0){
+  if(read_sector(inodeSectorPos, inodeSector) != 0){
     LGA_LOGGER_ERROR("inode sector not read properly");
     return FAILED;
   }
   LGA_LOGGER_LOG("inode sector read properly");
 
-  int offset = inodePos - (inodesPerSector * inodeSectorPos);
+  int offset = getOffsetInode(inodePos);
+  printf("%d\n",offset );
 
   char inodeData[INODE_SIZE];
 
@@ -202,9 +199,7 @@ int getSavedInode(DWORD inodePos, char* data){
     data[i] = inodeSector[i + offset * INODE_SIZE];
   }
 
-
   return SUCCEEDED;
-
 }
 
 FILE2 addFileToOpenFiles(FileRecord file){
@@ -232,4 +227,34 @@ int getFreeNode() {
   LGA_LOGGER_LOG("[getFreeNode] Getting Free iNode");
 
   return searchBitmap2(INODE_TYPE, INODE_FREE);
+}
+
+int getSectorIndexInode(DWORD inodePos) {
+  LGA_LOGGER_DEBUG("[getSectorInode]");
+  return floor(inodePos/INODE_PER_SECTOR) + INODE_SECTOR_INDEX;
+}
+
+int getOffsetInode(DWORD inodePos) {
+  int inodeSectorPos = getSectorIndexInode(inodePos);
+  return inodePos - (INODE_PER_SECTOR * (inodeSectorPos - INODE_SECTOR_INDEX));
+}
+
+void changeSector(int start, char* data, char* diskSector, char* saveSector) {
+  int size = sizeof(data);
+  int i, j;
+
+  LGA_LOGGER_DEBUG("[changeSector] Changing the Sector");
+  for(i = 0; i < INODE_PER_SECTOR; i++){
+    for(j = 0; j < size; j++){
+      if(i == start){
+        saveSector[i * INODE_SIZE + j] = data[j];
+      }else{
+        saveSector[i * INODE_SIZE + j] = diskSector[i * INODE_SIZE + j];
+      }
+    }
+  }
+}
+
+void getDataSector(int start, int end, char* diskSector, char* saveSector) {
+
 }

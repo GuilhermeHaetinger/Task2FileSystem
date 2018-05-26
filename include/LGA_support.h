@@ -40,8 +40,6 @@ bool superBlockRead;
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
 recordHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 
-int inodeSectorIndex;
-
 
 /*  funções   */
 
@@ -139,3 +137,32 @@ FILE2 addFileToOpenFiles(FileRecord file);
  * int -> posição no bitmap
 */
 int getFreeNode();
+
+/*
+ * Busca o numero do sector de um iNode
+ * * @params:
+ * inodePos -> Posição do iNode na ordem dos iNodes
+ * returns:
+ * int -> posição do setor no disco
+*/
+int getSectorIndexInode(DWORD inodePos);
+
+/*
+ * Busca o numero do offset de um iNode
+ * * @params:
+ * inodePos -> Posição do iNode na ordem dos iNodes
+ * returns:
+ * int -> offset
+*/
+int getOffsetInode(DWORD inodePos);
+
+/*
+ * Muda um setor deixando os dados originais que nao serao substituidos como estavam
+ * * @params:
+ * inodePos -> Posição do iNode na ordem dos iNodes
+ * start -> indice inicial do dado que sera inserido
+ * data -> dado a ser inserido
+ * diskSector -> setor original
+ * saveSector -> setor a ser salvo
+*/
+void changeSector(int start, char* data, char* diskSector, char* saveSector);
