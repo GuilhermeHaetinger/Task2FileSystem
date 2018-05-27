@@ -9,10 +9,10 @@ int inodeWritingTest();
 int blockWritingTest();
 
 int main(){
+  LGA_LOGGER_TEST("Setting blockFileSize value to 3");
 
-    inodeWritingTest();
-    blockWritingTest();
-
+  inodeWritingTest();
+  blockWritingTest();
 }
 
 int inodeWritingTest(){
@@ -31,7 +31,7 @@ int inodeWritingTest(){
     char test[INODE_SIZE];
 
     LGA_LOGGER_TEST("REcovering INODE");
-    if(getSavedInode(inodePos, test) != SUCCEEDED){
+    if(getInode(inodePos, test) != SUCCEEDED){
         LGA_LOGGER_TEST("Recovering INODE failed");
         return FAILED;
     }
@@ -49,7 +49,6 @@ int inodeWritingTest(){
 
 int blockWritingTest(){
     int i;
-
     char testingText[superBlock.blockSize * SECTOR_SIZE];
 
     LGA_LOGGER_TEST("Setting testingText");
@@ -59,16 +58,17 @@ int blockWritingTest(){
     int firstBlockSector = (superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + superBlock.inodeAreaSize) * superBlock.blockSize + 1;
 
     LGA_LOGGER_TEST("Writing Block");
-    if(writeBlock(firstBlockSector, testingText) != SUCCEEDED){
+    if(writeBlock(firstBlockSector, testingText, strlen(testingText)) != SUCCEEDED){
         LGA_LOGGER_TEST("Block writing failed");
         return FAILED;
     }
     LGA_LOGGER_TEST("Block writing succeded");
 
     char testingBlock[superBlock.blockSize * SECTOR_SIZE];
+    cleanArray(testingBlock, superBlock.blockSize * SECTOR_SIZE);
 
     LGA_LOGGER_TEST("Reading block");
-    if(readBlock(firstBlockSector, testingBlock) != SUCCEEDED){
+    if(readBlock(firstBlockSector, testingBlock, superBlock.blockSize * SECTOR_SIZE) != SUCCEEDED){
         LGA_LOGGER_TEST("Reading block failed");
         return FAILED;
     }

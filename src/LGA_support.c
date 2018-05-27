@@ -12,23 +12,22 @@
 
 int openFilesHandler = 0;
 int openDirectoriesHandler = 0;
-int INODE_SECTOR_INDEX;
-int INODE_PER_SECTOR;
+int INODE_SECTOR_INDEX = 0;
+int INODE_PER_SECTOR = 0;
+int SECTORS_PER_BLOCK = 0;
 
 int initializeSuperBlock(){
   if(!superBlockRead){
-    LGA_LOGGER_LOG("Superblock wasn't read yet");
+    LGA_LOGGER_DEBUG("Superblock wasn't read yet");
     return readSuperblock();
   }
-  LGA_LOGGER_LOG("Superblock already read");
+  LGA_LOGGER_DEBUG("Superblock already read");
   return SUCCEEDED;
 }
 
 int readSuperblock(){
-
   if(superBlockRead){
     LGA_LOGGER_LOG("Superblock already read");
-
     return ALREADY_INITIALIZED;
   }
 
@@ -42,6 +41,8 @@ int readSuperblock(){
     INODE_SECTOR_INDEX = (superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + 1) * superBlock.blockSize;
 
     INODE_PER_SECTOR = SECTOR_SIZE/INODE_SIZE;
+
+    SECTORS_PER_BLOCK = superBlock.blockSize;
     superBlockRead = true;
 
     LGA_LOGGER_LOG("Superblock written correctly");
@@ -52,80 +53,70 @@ int readSuperblock(){
   }
 }
 
-int writeBlock(int initialSector, char* data){
+
+int writeBlock(int sectorPos, char* data, int dataSize) {
   if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+    LGA_LOGGER_ERROR("[writeBlock] SuperBlock wasn't initialized");
     return FAILED;
   }
-  int dataSize = sizeof(data);
 
-  if(blockIsInAcceptableSize(data)){
-    LGA_LOGGER_LOG("Block in acceptable size");
-    int i, j;
+  char sectorBuffer[SECTOR_SIZE];
+  int i,j;
 
-    char sectorBuffer[SECTOR_SIZE];
-
-    LGA_LOGGER_LOG("Entering writing loop");
-
-    for(i = 0; i < superBlock.blockSize; i++){
-
-      for(j = 0; j< SECTOR_SIZE; j++){
-        sectorBuffer[j] = data[j + i * SECTOR_SIZE];
-      }
-
-      if(write_sector(initialSector + i, sectorBuffer)){
-
-      }else{
-        LGA_LOGGER_ERROR("Writing failed in writing loop");
-        return FAILED;
-      }
+  for(i = 0; i < SECTORS_PER_BLOCK; i++){
+    cleanArray(sectorBuffer, SECTOR_SIZE);
+    for(j = 0; j< SECTOR_SIZE; j++){
+      if (dataSize < j + i * SECTOR_SIZE)
+        break;
+      sectorBuffer[j] = data[j + i * SECTOR_SIZE];
     }
-  }else{
+    if(write_sector(sectorPos + i, sectorBuffer) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[writeBlock] Writing failed in writing loop");
+      return FAILED;
+    }
+  }
+  LGA_LOGGER_LOG("[writeBlock] Successfully");
+
+  return SUCCEEDED;
+}
+
+int readBlock(int sectorPos, char* data, int dataSize){
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("[readBlock] SuperBlock wasn't initialized");
     return FAILED;
   }
 
+  if (dataSize != SECTORS_PER_BLOCK * SECTOR_SIZE) {
+    LGA_LOGGER_ERROR("[readBlock] Data size is different from Block size");
+    return FAILED;
+  }
 
-  LGA_LOGGER_LOG("Block written successfully");
+  int i, j;
+
+  LGA_LOGGER_DEBUG("[readBlock] Entering reading loop");
+
+  char sectorBuffer[SECTOR_SIZE];
+
+  for(i = 0; i < superBlock.blockSize; i++){
+    if(read_sector(sectorPos + i, sectorBuffer) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[readBlock] reading failed in writing loop");
+      return FAILED;
+    }
+    for(j = 0; j < SECTOR_SIZE; j++){
+      data[j + i * SECTOR_SIZE] = sectorBuffer[j];
+    }
+  }
+  LGA_LOGGER_LOG("[readBlock] Block read successfully");
   return SUCCEEDED;
 
 }
 
-int readBlock(int initialSector, char* data){
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
-    return FAILED;
+void cleanArray(char *array, int size) {
+  int i;
+
+  for(i=0; i < size; i++) {
+    array[i] = 0;
   }
-  int dataSize = sizeof(data);
-
-  if(blockIsInAcceptableSize(data)){
-    LGA_LOGGER_LOG("Block in acceptable size");
-    int i, j;
-    int readResult = SUCCEEDED;
-
-    LGA_LOGGER_LOG("Entering reading loop");
-
-    char sectorBuffer[SECTOR_SIZE];
-
-    for(i = 0; i < superBlock.blockSize; i++){
-      if(readResult == SUCCEEDED){
-        readResult = read_sector(initialSector + i, sectorBuffer);
-      }else{
-        LGA_LOGGER_ERROR("reading failed in writing loop");
-        return FAILED;
-      }
-
-      for(j = 0; j < SECTOR_SIZE; j++){
-        data[j + i * SECTOR_SIZE] = sectorBuffer[j];
-      }
-
-    }
-  }else{
-    return FAILED;
-  }
-
-  LGA_LOGGER_LOG("Block read successfully");
-  return SUCCEEDED;
-
 }
 
 bool blockIsInAcceptableSize(char* data){
@@ -134,7 +125,6 @@ bool blockIsInAcceptableSize(char* data){
   int dataSectors = dataSize/SECTOR_SIZE;
 
   if(dataSectors != superBlock.blockSize){
-    LGA_LOGGER_ERROR("Block isn't of acceptable size");
     return false;
   }else{
     return true;
@@ -148,7 +138,6 @@ int saveInode(DWORD inodePos, char* data){
   }
 
   int inodeSectorPos = getSectorIndexInode(inodePos);
-  printf("%d\n",inodeSectorPos );
 
   char diskSector[SECTOR_SIZE];
   LGA_LOGGER_LOG("[saveInode] Reading inode sector");
@@ -159,7 +148,6 @@ int saveInode(DWORD inodePos, char* data){
   LGA_LOGGER_LOG("[saveInode] inode sector read properly");
 
   int offset = getOffsetInode(inodePos);
-  printf("%d\n",offset );
 
   char sectorData[SECTOR_SIZE];
   changeSector(offset, data, diskSector, sectorData);
@@ -169,18 +157,17 @@ int saveInode(DWORD inodePos, char* data){
   return SUCCEEDED;
 }
 
-int getSavedInode(DWORD inodePos, char* data){
+int getInode(DWORD inodePos, char* data){
   if (initializeSuperBlock() == FAILED) {
     LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
     return FAILED;
   }
-  
+
   int inodesPerSector = SECTOR_SIZE/INODE_SIZE;
 
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
   char inodeSector[SECTOR_SIZE];
-  printf("%d\n",inodeSectorPos );
   LGA_LOGGER_LOG("reading inode sector");
   if(read_sector(inodeSectorPos, inodeSector) != 0){
     LGA_LOGGER_ERROR("inode sector not read properly");
@@ -189,7 +176,6 @@ int getSavedInode(DWORD inodePos, char* data){
   LGA_LOGGER_LOG("inode sector read properly");
 
   int offset = getOffsetInode(inodePos);
-  printf("%d\n",offset );
 
   char inodeData[INODE_SIZE];
 

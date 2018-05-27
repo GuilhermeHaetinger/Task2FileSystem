@@ -65,25 +65,27 @@ int readSuperblock();
 /*
  * Escreve um bloco de dados no disco
  * @params:
- * initialSector -> setor inicial de escrita
- * data          -> dados a serem escritos
+ * sectorPos -> setor inicial de leitura
+ * data      -> espaço alocado para armazenamento dos dados lidos
+ * dataSize  -> tamanho do data
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int writeBlock(int initialSector, char* data);
+int writeBlock(int sectorPos, char* data, int dataSize);
 
 
 /*
  * Lê um bloco de dados escrito no disco
  * @params:
- * initialSector -> setor inicial de leitura
- * data          -> espaço alocado para armazenamento dos dados lidos
+ * sectorPos -> setor inicial de leitura
+ * data      -> espaço alocado para armazenamento dos dados lidos
+ * dataSize  -> tamanho do data
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int readBlock(int initialSector, char* data);
+int readBlock(int sectorPos, char* data, int dataSize);
 
 
 /*
@@ -118,7 +120,7 @@ int saveInode(DWORD inodePos, char* data);
  * 0  -> caso recuere propriamente
  * -1 -> caso ocorra um erro
 */
-int getSavedInode(DWORD inodePos, char* data);
+int getInode(DWORD inodePos, char* data);
 
 
 /*
@@ -166,3 +168,11 @@ int getOffsetInode(DWORD inodePos);
  * saveSector -> setor a ser salvo
 */
 void changeSector(int start, char* data, char* diskSector, char* saveSector);
+
+/*
+ * Limpa um array com 0 no lugar dos valores.
+ * * @params:
+ * array -> Array a ser limpado
+ * size -> Tamanho do array
+*/
+void cleanArray(char *array, int size);
