@@ -53,7 +53,6 @@ int readSuperblock(){
   }
 }
 
-
 int writeBlock(int sectorPos, char* data, int dataSize) {
   if (initializeSuperBlock() == FAILED) {
     LGA_LOGGER_ERROR("[writeBlock] SuperBlock wasn't initialized");
@@ -111,49 +110,32 @@ int readBlock(int sectorPos, char* data, int dataSize){
 
 }
 
-void cleanArray(char *array, int size) {
-  int i;
-
-  for(i=0; i < size; i++) {
-    array[i] = 0;
-  }
-}
-
-bool blockIsInAcceptableSize(char* data){
-  int dataSize = sizeof(data);
-
-  int dataSectors = dataSize/SECTOR_SIZE;
-
-  if(dataSectors != superBlock.blockSize){
-    return false;
-  }else{
-    return true;
-  }
-}
-
 int saveInode(DWORD inodePos, char* data){
   if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+    LGA_LOGGER_ERROR("[saveInode] SuperBlock wasn't initialized");
     return FAILED;
   }
 
+  LGA_LOGGER_DEBUG("[saveInode] Setting iNode to busy on bitmap");
+  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
   char diskSector[SECTOR_SIZE];
-  LGA_LOGGER_LOG("[saveInode] Reading inode sector");
+  LGA_LOGGER_DEBUG("[saveInode] Reading inode sector");
   if(read_sector(inodeSectorPos, diskSector) != SUCCEEDED){
     LGA_LOGGER_ERROR("[saveInode] inode sector not read properly");
     return FAILED;
   }
-  LGA_LOGGER_LOG("[saveInode] inode sector read properly");
+  LGA_LOGGER_DEBUG("[saveInode] inode sector read properly");
 
   int offset = getOffsetInode(inodePos);
 
   char sectorData[SECTOR_SIZE];
-  changeSector(offset, data, diskSector, sectorData);
-  LGA_LOGGER_LOG("[saveInode] writing new inode block");
-  write_sector(inodeSectorPos, sectorData);
+  changeSector(offset, data, INODE_SIZE, diskSector, sectorData);
+  LGA_LOGGER_DEBUG("[saveInode] writing new inode block");
 
+  write_sector(inodeSectorPos, sectorData);
+  LGA_LOGGER_LOG("[saveInode] Successfully");
   return SUCCEEDED;
 }
 
@@ -216,7 +198,7 @@ int getFreeNode() {
 }
 
 int getSectorIndexInode(DWORD inodePos) {
-  LGA_LOGGER_DEBUG("[getSectorInode]");
+  LGA_LOGGER_DEBUG("[getSectorInode] Getting");
   return floor(inodePos/INODE_PER_SECTOR) + INODE_SECTOR_INDEX;
 }
 
@@ -225,13 +207,11 @@ int getOffsetInode(DWORD inodePos) {
   return inodePos - (INODE_PER_SECTOR * (inodeSectorPos - INODE_SECTOR_INDEX));
 }
 
-void changeSector(int start, char* data, char* diskSector, char* saveSector) {
-  int size = sizeof(data);
+void changeSector(int start, char* data, int dataSize, char* diskSector, char* saveSector) {
   int i, j;
-
   LGA_LOGGER_DEBUG("[changeSector] Changing the Sector");
   for(i = 0; i < INODE_PER_SECTOR; i++){
-    for(j = 0; j < size; j++){
+    for(j = 0; j < dataSize; j++){
       if(i == start){
         saveSector[i * INODE_SIZE + j] = data[j];
       }else{
@@ -241,6 +221,109 @@ void changeSector(int start, char* data, char* diskSector, char* saveSector) {
   }
 }
 
-void getDataSector(int start, int end, char* diskSector, char* saveSector) {
+void cleanArray(char *array, int size) {
+  int i;
 
+  for(i=0; i < size; i++) {
+    array[i] = 0;
+  }
+}
+
+int createRoot() {
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("[saveInode] SuperBlock wasn't initialized");
+    return FAILED;
+  }
+
+  Inode rootInode;
+  rootInode.blocksFileSize = 0;
+  rootInode.bytesFileSize = 0;
+
+  FileRecord dot, dotdot; /* . && .. */
+  dot.TypeVal = TYPEVAL_DIRETORIO;
+  strcpy(dot.name, ".");
+  dot.inodeNumber = ROOT_INODE;
+  dotdot.TypeVal = 58;
+  strcpy(dotdot.name, "..");
+  dotdot.inodeNumber = ROOT_INODE;
+
+  int sectorPos = searchBitmap2(BITMAP_DADOS, 0);
+  char registersData[REGISTER_SIZE * 2];
+
+  concatCustom(registersData, 0, (char*)&dot, REGISTER_SIZE);
+  concatCustom(registersData, REGISTER_SIZE, (char*)&dotdot, REGISTER_SIZE);
+  writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
+
+  rootInode.dataPtr[0] = sectorPos;
+
+  saveInode(ROOT_INODE, (char *)&rootInode);
+  LGA_LOGGER_LOG("[createRoot] Root created");
+  return SUCCEEDED;
+}
+
+int rootCreated() {
+  if (getBitmap2(INODE_TYPE, ROOT_INODE) == 0) {
+    LGA_LOGGER_LOG("[createRoot] Root isnt there");
+    return FAILED;
+  }
+  LGA_LOGGER_LOG("[createRoot] Root is already there");
+  return SUCCEEDED;
+}
+
+int getRoot(char* buffer) {
+  if (initializeSuperBlock() == FAILED) {
+    LGA_LOGGER_ERROR("[getRoot] SuperBlock wasn't initialized");
+    return FAILED;
+  }
+
+  if (rootCreated() != SUCCEEDED) {
+    if (createRoot() != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[getRoot] There's no Root");
+      return FAILED;
+    }
+  }
+
+  if (getInode(ROOT_INODE, buffer) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getRoot] Root iNode couldnt be read");
+    return FAILED;
+  }
+
+  LGA_LOGGER_LOG("[getRoot] Get Root Successfully");
+  return SUCCEEDED;
+}
+
+void concatCustom(char* concatened, int concatStartPos, char* buffer, int bufferSize) {
+  int i;
+  for(i=0; i<bufferSize; i++) {
+    concatened[concatStartPos + i] = buffer[i];
+  }
+}
+
+int getRegisterFile(int sectorPos, int registerNumber, char *buffer) {
+  char diskSector[SECTOR_SIZE];
+
+  if (read_sector(sectorPos, diskSector) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getRegisterFile] Sector couldnt be read");
+    return FAILED;
+  }
+  if (getDataSector(registerNumber * REGISTER_SIZE, REGISTER_SIZE, diskSector, buffer) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getRegisterFile] Sector couldnt get the data");
+    return FAILED;
+  }
+
+  return SUCCEEDED;
+}
+
+
+int getDataSector(int start, int dataSize, char* diskSector, char* buffer) {
+  if (dataSize > SECTOR_SIZE) {
+    LGA_LOGGER_ERROR("[getDataSector] DATA size greater than SECTOR size");
+    return FAILED;
+  }
+
+  for (int i=0; i < dataSize; i++) {
+    buffer[i] = diskSector[start + i];
+  }
+  LGA_LOGGER_DEBUG("[getDataSector] Successfully");
+  return SUCCEEDED;
 }

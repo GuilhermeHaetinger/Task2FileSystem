@@ -19,6 +19,9 @@
 #define INODE_FREE 0
 #define INODE_SIZE 32
 
+#define ROOT_INODE 0
+
+#define REGISTER_SIZE 64
 
 /*  tipos   */
 typedef struct t2fs_superbloco SuperBlock;
@@ -167,7 +170,7 @@ int getOffsetInode(DWORD inodePos);
  * diskSector -> setor original
  * saveSector -> setor a ser salvo
 */
-void changeSector(int start, char* data, char* diskSector, char* saveSector);
+void changeSector(int start, char* data, int dataSize, char* diskSector, char* saveSector);
 
 /*
  * Limpa um array com 0 no lugar dos valores.
@@ -176,3 +179,64 @@ void changeSector(int start, char* data, char* diskSector, char* saveSector);
  * size -> Tamanho do array
 */
 void cleanArray(char *array, int size);
+
+/*
+ * Cria o iNode do root
+ * returns:
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
+*/
+int createRoot();
+
+/*
+ * Verifica se o inode do Root esta criado
+ * returns:
+ * 0  -> caso ja esteja criado
+ * -1 -> caso nao tenha sido criado
+*/
+int rootCreated();
+
+/*
+ * Pega o inode Root
+ * * @params:
+ * buffer -> Buffer para receber o iNode
+ * returns:
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
+*/
+int getRoot(char* buffer);
+
+/*
+ * Concatena os dados de dois char*
+ * * @params:
+ * concatened -> Vetor final que tera a concatenacao
+ * concatStartPos -> Posicao inicial para comecar a concatencao
+ * buffer -> Vetor que sera concatenado
+ * bufferSize -> Tamanho do buffer
+*/
+void concatCustom(char* concatened, int concatStartPos, char* buffer, int bufferSize);
+
+/*
+ * Pega um registerFile de um setor
+ * * @params:
+ * sectorPos -> Posicao do setor
+ * registerNumber -> Posicao do registro dentro do setor
+ * buffer -> Vetor que recebera o register
+ * returns:
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
+*/
+int getRegisterFile(int sectorPos, int registerNumber, char *buffer);
+
+/*
+ * Pega os dados de um diskSector e coloca no saveSector
+ * * @params:
+ * start -> Ponto inicial do daoo no setor
+ * dataSize -> Tamanho do dado a ser pego
+ * diskSector -> Setor a ter os dados pegos
+ * saveSector -> Buffer para receber os dados
+ * returns:
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
+*/
+int getDataSector(int start, int dataSize, char* diskSector, char* buffer);
