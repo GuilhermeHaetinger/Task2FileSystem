@@ -10,16 +10,26 @@
 #include "../include/t2fs.h"
 #include "../include/bitmap2.h"
 
-int openFilesHandler = 0;
+int openFilesHandler       = 0;
 int openDirectoriesHandler = 0;
-int INODE_SECTOR_INDEX = 0;
-int INODE_PER_SECTOR = 0;
-int SECTORS_PER_BLOCK = 0;
+int INODE_SECTOR_INDEX     = 0;
+int INODE_PER_SECTOR       = 0;
+int SECTORS_PER_BLOCK      = 0;
 
 int initializeSuperBlock(){
   if(!superBlockRead){
     LGA_LOGGER_DEBUG("Superblock wasn't read yet");
-    return readSuperblock();
+
+    if(readSuperblock() != SUCCEEDED){
+      LGA_LOGGER_ERROR("[initializeSystem] superBlock not read properly");
+      return FAILED;
+    }
+    if(getRootInode((char *)&openDirectory) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[initializeSystem] Root inode not retrieved correctly");
+      return FAILED;
+    }
+    LGA_LOGGER_DEBUG("Root Inode retrieved correctly");
+    return SUCCEEDED;
   }
   LGA_LOGGER_DEBUG("Superblock already read");
   return SUCCEEDED;
@@ -53,14 +63,18 @@ int readSuperblock(){
   }
 }
 
-int writeBlock(int sectorPos, char* data, int dataSize) {
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("[writeBlock] SuperBlock wasn't initialized");
-    return FAILED;
-  }
+int getFreeBlock(){
+  return searchBitmap2(BLOCK_TYPE, 0);
+}
+
+int writeBlock(int blockPos, char* data, int dataSize) {
+
+  int sectorPos = blockPos * SECTORS_PER_BLOCK;
 
   char sectorBuffer[SECTOR_SIZE];
   int i,j;
+
+  setBitmap2(BLOCK_TYPE, blockPos, 1);
 
   for(i = 0; i < SECTORS_PER_BLOCK; i++){
     cleanArray(sectorBuffer, SECTOR_SIZE);
@@ -79,11 +93,9 @@ int writeBlock(int sectorPos, char* data, int dataSize) {
   return SUCCEEDED;
 }
 
-int readBlock(int sectorPos, char* data, int dataSize){
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("[readBlock] SuperBlock wasn't initialized");
-    return FAILED;
-  }
+int readBlock(int blockPos, char* data, int dataSize){
+
+  int sectorPos = blockPos * SECTORS_PER_BLOCK;
 
   if (dataSize != SECTORS_PER_BLOCK * SECTOR_SIZE) {
     LGA_LOGGER_ERROR("[readBlock] Data size is different from Block size");
@@ -111,12 +123,12 @@ int readBlock(int sectorPos, char* data, int dataSize){
 }
 
 int saveInode(DWORD inodePos, char* data){
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("[saveInode] SuperBlock wasn't initialized");
-    return FAILED;
-  }
 
   LGA_LOGGER_DEBUG("[saveInode] Setting iNode to busy on bitmap");
+  if(getBitmap2(INODE_TYPE, inodePos) == INODE_BUSY){
+    LGA_LOGGER_ERROR("[saveInode] Inode Bitmap positionis already busy");
+    return FAILED;
+  }
   setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
@@ -139,11 +151,33 @@ int saveInode(DWORD inodePos, char* data){
   return SUCCEEDED;
 }
 
-int getInode(DWORD inodePos, char* data){
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("SuperBlock wasn't initialized");
+
+int setInode(DWORD inodePos, char* data){
+
+  LGA_LOGGER_DEBUG("[setInode] Setting iNode to busy on bitmap");
+  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+  int inodeSectorPos = getSectorIndexInode(inodePos);
+
+  char diskSector[SECTOR_SIZE];
+  LGA_LOGGER_DEBUG("[setInode] Reading inode sector");
+  if(read_sector(inodeSectorPos, diskSector) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[setInode] inode sector not read properly");
     return FAILED;
   }
+  LGA_LOGGER_DEBUG("[setInode] inode sector read properly");
+
+  int offset = getOffsetInode(inodePos);
+
+  char sectorData[SECTOR_SIZE];
+  changeSector(offset, data, INODE_SIZE, diskSector, sectorData);
+  LGA_LOGGER_DEBUG("[setInode] writing new inode block");
+
+  write_sector(inodeSectorPos, sectorData);
+  LGA_LOGGER_LOG("[setInode] Successfully");
+  return SUCCEEDED;
+}
+
+int getInode(DWORD inodePos, char* data){
 
   int inodesPerSector = SECTOR_SIZE/INODE_SIZE;
 
@@ -191,10 +225,19 @@ FILE2 addFileToOpenFiles(FileRecord file){
 
 }
 
-int getFreeNode() {
+int getFreeInode() {
   LGA_LOGGER_LOG("[getFreeNode] Getting Free iNode");
 
   return searchBitmap2(INODE_TYPE, INODE_FREE);
+}
+
+void initializeInode(Inode * buffer){
+  buffer->blocksFileSize = 0;
+  buffer->bytesFileSize  = 0;
+  buffer->dataPtr[0]     = INVALID_PTR;
+  buffer->dataPtr[1]     = INVALID_PTR;
+  buffer->singleIndPtr   = INVALID_PTR;
+  buffer->doubleIndPtr   = INVALID_PTR;       
 }
 
 int getSectorIndexInode(DWORD inodePos) {
@@ -230,20 +273,18 @@ void cleanArray(char *array, int size) {
 }
 
 int createRoot() {
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("[saveInode] SuperBlock wasn't initialized");
-    return FAILED;
-  }
-
+  
   Inode rootInode;
-  rootInode.blocksFileSize = 0;
-  rootInode.bytesFileSize = 0;
+  initializeInode(&rootInode);
+  
+  rootInode.blocksFileSize = 1;
+  rootInode.bytesFileSize = REGISTER_SIZE * 2;
 
   FileRecord dot, dotdot; /* . && .. */
   dot.TypeVal = TYPEVAL_DIRETORIO;
   strcpy(dot.name, ".");
   dot.inodeNumber = ROOT_INODE;
-  dotdot.TypeVal = 58;
+  dotdot.TypeVal = TYPEVAL_DIRETORIO;
   strcpy(dotdot.name, "..");
   dotdot.inodeNumber = ROOT_INODE;
 
@@ -270,12 +311,8 @@ int rootCreated() {
   return SUCCEEDED;
 }
 
-int getRoot(char* buffer) {
-  if (initializeSuperBlock() == FAILED) {
-    LGA_LOGGER_ERROR("[getRoot] SuperBlock wasn't initialized");
-    return FAILED;
-  }
-
+int getRootInode(char* buffer) {
+  
   if (rootCreated() != SUCCEEDED) {
     if (createRoot() != SUCCEEDED) {
       LGA_LOGGER_ERROR("[getRoot] There's no Root");
@@ -326,4 +363,45 @@ int getDataSector(int start, int dataSize, char* diskSector, char* buffer) {
   }
   LGA_LOGGER_DEBUG("[getDataSector] Successfully");
   return SUCCEEDED;
+}
+
+int addFileToOpenDirectory(FileRecord file){
+}
+
+int getNewFilePositionOnOpenDirectory(){
+
+  if(openDirectory.bytesFileSize % (SECTOR_SIZE * SECTORS_PER_BLOCK) == 0 && 
+    openDirectory.blocksFileSize * (SECTOR_SIZE * SECTORS_PER_BLOCK) == openDirectory.bytesFileSize){
+    LGA_LOGGER_DEBUG("[getNewFilePositionOnOpenDirectory] Allocating new block");
+    if(allocateDataBlock(openDirectory) != SUCCEEDED){
+     return FAILED; 
+    }
+  }
+  return openDirectory.bytesFileSize / REGISTER_SIZE;  
+}
+
+int allocateDataBlock(Inode inode){
+  if(inode.dataPtr[0] == INVALID_PTR){
+    inode.dataptr[0] = getFreeBlock();
+    if(inode.dataptr[0] < 0){
+      LGA_LOGGER_ERROR("[allocateDataBlock] No available blocks");
+      return FAILED;
+    }
+    setBitmap2(BLOCK_TYPE, inode.dataPtr[0], 1);
+    LGA_LOGGER_DEBUG("[allocateDataBlock] Block allocated properly");
+    inode.blocksFileSize++;
+    return SUCCEEDED;
+  }
+  if(inode.dataPtr[1] == INVALID_PTR){
+    inode.dataptr[1] = getFreeBlock();
+    if(inode.dataptr[1]] < 0){
+      LGA_LOGGER_ERROR("[allocateDataBlock] No available blocks");
+      return FAILED;
+    }
+    setBitmap2(BLOCK_TYPE, inode.dataPtr[1], 1);
+    LGA_LOGGER_DEBUG("[allocateDataBlock] Block allocated properly");
+    inode.blocksFileSize++;
+    return SUCCEEDED;
+  }
+  ///TODO IND E DOUB IND
 }

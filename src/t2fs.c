@@ -65,25 +65,30 @@ FILE2 create2 (char *filename){
 
 	LGA_LOGGER_LOG("Searching for inode position");
 
-	DWORD inodePos = getFreeNode();
-  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+	DWORD inodePos = getFreeInode();
 
 	file.TypeVal = TYPEVAL_REGULAR;
-  strncpy(file.name, filename, 59);
+  	strncpy(file.name, filename, 59);
 	file.inodeNumber = inodePos;
+
+	LGA_LOGGER_LOG("Adding record to open file vector");
+	FILE2 fileHandler = addFileToOpenFiles(file);
+	if(fileHandler == FAILED){
+		LGA_LOGGER_ERROR("File record isn't openable");
+		return FAILED;
+	}
 
 	LGA_LOGGER_LOG("Creating inode");
 
 	Inode fileInode;
-
+	initializeInode(&fileInode);
 
 	if(saveInode(inodePos, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("Inode not saved properly");
 		return FAILED;
 	}
-
-	LGA_LOGGER_LOG("Adding record to open file vector");
-  return addFileToOpenFiles(file);
+	
+  	return fileHandler;
 }
 
 

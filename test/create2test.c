@@ -14,14 +14,6 @@ int main(){
         return -1;
     }
     LGA_LOGGER_TEST("Create SUCCEDED");
-    
-    LGA_LOGGER_TEST("Testing inode from 'arquivoTeste'");
-    
-    if(testInode(fileHandler)< 0){
-        LGA_LOGGER_TEST("inode FAILED");
-        return -1;
-    }
-    LGA_LOGGER_TEST("inode SUCCEDED");
 
     
     return 0;

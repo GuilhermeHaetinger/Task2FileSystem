@@ -10,7 +10,6 @@
 #define STACK_SIZE 163840
 
 #define MAX_NUM_OF_OPEN_FILES 10
-#define MAX_NUM_OF_OPEN_DIRECTORIES 50
 
 #define INODE_TYPE 0
 #define BLOCK_TYPE 1
@@ -22,6 +21,8 @@
 #define ROOT_INODE 0
 
 #define REGISTER_SIZE 64
+
+#define ENTRY_ENABLED -2
 
 /*  tipos   */
 typedef struct t2fs_superbloco SuperBlock;
@@ -41,7 +42,7 @@ bool superBlockRead;
 
 
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
-recordHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
+Inode openDirectory;
 
 
 /*  funções   */
@@ -64,31 +65,38 @@ int initializeSuperBlock();
 */
 int readSuperblock();
 
+/*
+ * Procura um bloco disponível no disco
+ * returns:
+ * >0  -> posição do bloco
+ * -1  -> caso tenha falhado
+*/
+int getFreeBlock();
 
 /*
  * Escreve um bloco de dados no disco
  * @params:
- * sectorPos -> setor inicial de leitura
+ * blockPos -> posição do bloco
  * data      -> espaço alocado para armazenamento dos dados lidos
  * dataSize  -> tamanho do data
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int writeBlock(int sectorPos, char* data, int dataSize);
+int writeBlock(int blockPos, char* data, int dataSize);
 
 
 /*
  * Lê um bloco de dados escrito no disco
  * @params:
- * sectorPos -> setor inicial de leitura
+ * blockPos  -> posição do block
  * data      -> espaço alocado para armazenamento dos dados lidos
  * dataSize  -> tamanho do data
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int readBlock(int sectorPos, char* data, int dataSize);
+int readBlock(int blockPos, char* data, int dataSize);
 
 
 /*
@@ -103,7 +111,7 @@ bool blockIsInAcceptableSize(char* data);
 
 
 /*
- * Verifica se um bloco de dados pode se encaixar dentro dos blocos do sistema
+ * Verifica se um bloco de inodes pode se encaixar dentro dos blocos do sistema
  * @params:
  * indePos -> posição do inode
  * data -> dados do inode
@@ -113,6 +121,16 @@ bool blockIsInAcceptableSize(char* data);
 */
 int saveInode(DWORD inodePos, char* data);
 
+/*
+ * Encaixa um bloco de inodes dentro dos blocos do sistema
+ * @params:
+ * indePos -> posição do inode
+ * data -> dados do inode
+ * returns:
+ * 0  -> caso salve propriamente
+ * -1 -> caso ocorra um erro
+*/
+int setInode(DWORD inodePos, char* data);
 
 /*
  * Verifica se um bloco de dados pode se encaixar dentro dos blocos do sistema
@@ -124,7 +142,6 @@ int saveInode(DWORD inodePos, char* data);
  * -1 -> caso ocorra um erro
 */
 int getInode(DWORD inodePos, char* data);
-
 
 /*
  * Tenta adicionar o arquivo ao vetor de arquivos abertos
@@ -141,7 +158,14 @@ FILE2 addFileToOpenFiles(FileRecord file);
  * returns:
  * int -> posição no bitmap
 */
-int getFreeNode();
+int getFreeInode();
+
+/*
+ * creates inode
+ * returns:
+ * void
+*/
+void initializeInode(Inode * buffer);
 
 /*
  * Busca o numero do sector de um iNode
@@ -204,7 +228,7 @@ int rootCreated();
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int getRoot(char* buffer);
+int getRootInode(char* buffer);
 
 /*
  * Concatena os dados de dois char*
@@ -240,3 +264,31 @@ int getRegisterFile(int sectorPos, int registerNumber, char *buffer);
  * -1 -> caso tenha falhado
 */
 int getDataSector(int start, int dataSize, char* diskSector, char* buffer);
+
+/*
+ * Salva o arquivo no diretório atual
+ * * @params:
+ * file -> FileRegister a ser adicionado
+ * returns:
+ * 0  -> caso tenha sido bem sucedido
+ * -1 -> caso tenha falhado
+*/
+int addFileToOpenDirectory(FileRecord file);
+
+/*
+ * Verifica o melhor local para adicionar um FileRegister no diretório atual
+ * returns:
+ * >0  -> posição
+ * -1  -> caso tenha falhado
+*/
+int getNewFilePositionOnOpenDirectory();
+
+/*
+ * aloca os blocos para posicionar os registros 
+ * *@params:
+ * inode -> inode em questão
+ * returns:
+ * 0  -> bem sucedido
+ * -1  -> caso tenha falhado
+*/
+int allocateDataBlock(Inode inode);
