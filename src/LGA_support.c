@@ -122,6 +122,10 @@ int readBlock(int blockPos, char* data, int dataSize){
 
 }
 
+int getDataBlockPosition(int dataBlockPos){
+  return 1 + superBlock.freeBlocksBitmapSize + superBlock.freeInodeBitmapSize + superBlock.inodeAreaSize + dataBlockPos;
+}
+
 int saveInode(DWORD inodePos, char* data){
 
   LGA_LOGGER_DEBUG("[saveInode] Setting iNode to busy on bitmap");
@@ -351,7 +355,6 @@ int getRegisterFile(int sectorPos, int registerNumber, char *buffer) {
   return SUCCEEDED;
 }
 
-
 int getDataSector(int start, int dataSize, char* diskSector, char* buffer) {
   if (dataSize > SECTOR_SIZE) {
     LGA_LOGGER_ERROR("[getDataSector] DATA size greater than SECTOR size");
@@ -369,21 +372,36 @@ int addFileToOpenDirectory(FileRecord file){
 }
 
 int getNewFilePositionOnOpenDirectory(){
+  
+  if(openDirectory.dataPtr[0] == INVALID_PTR){
+    ///ALOCA BLOCO PARA DATAPTR[0] E DÁ POSIÇÃO 1
+  }else{
+    int firstDirectPtrSector = getDataBlockPosition(openDirectory.dataPtr[0]) * SECTORS_PER_BLOCK;
+    char record_buffer[REGISTER_SIZE];
+    int sector, fileRec;
+    for(sector = 0; sector < SECTORS_PER_BLOCK; sector++){
+      for(fileRec = 0; fileRec < REGISTERS_PER_SECTOR; fileRec++){
 
-  if(openDirectory.bytesFileSize % (SECTOR_SIZE * SECTORS_PER_BLOCK) == 0 && 
-    openDirectory.blocksFileSize * (SECTOR_SIZE * SECTORS_PER_BLOCK) == openDirectory.bytesFileSize){
-    LGA_LOGGER_DEBUG("[getNewFilePositionOnOpenDirectory] Allocating new block");
-    if(allocateDataBlock(openDirectory) != SUCCEEDED){
-     return FAILED; 
+        getRegisterFile(firstDirectPtrSector + sector, fileRec, record_buffer);
+        if((*((FileRecord*)record_buffer)).TypeVal != TYPEVAL_DIRETORIO && (*((FileRecord*)record_buffer)).TypeVal != TYPEVAL_REGULAR){
+          break;
+        }
+      }
     }
+
+  if(sector == SECTOR_SIZE){
+    ///FAZ O MESMO PARA DATAPTR[1]
+  }  
+
+  ///FAZER PARA INDIRETO SIMPLES E DUPLO
+
   }
-  return openDirectory.bytesFileSize / REGISTER_SIZE;  
 }
 
 int allocateDataBlock(Inode inode){
   if(inode.dataPtr[0] == INVALID_PTR){
-    inode.dataptr[0] = getFreeBlock();
-    if(inode.dataptr[0] < 0){
+    inode.dataPtr[0] = getFreeBlock();
+    if(inode.dataPtr[0] < 0){
       LGA_LOGGER_ERROR("[allocateDataBlock] No available blocks");
       return FAILED;
     }
@@ -393,8 +411,8 @@ int allocateDataBlock(Inode inode){
     return SUCCEEDED;
   }
   if(inode.dataPtr[1] == INVALID_PTR){
-    inode.dataptr[1] = getFreeBlock();
-    if(inode.dataptr[1]] < 0){
+    inode.dataPtr[1] = getFreeBlock();
+    if(inode.dataPtr[1] < 0){
       LGA_LOGGER_ERROR("[allocateDataBlock] No available blocks");
       return FAILED;
     }

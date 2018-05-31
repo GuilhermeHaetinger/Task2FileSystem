@@ -18,6 +18,8 @@
 #define INODE_FREE 0
 #define INODE_SIZE 32
 
+#define REGISTERS_PER_SECTOR 4
+
 #define ROOT_INODE 0
 
 #define REGISTER_SIZE 64
@@ -97,6 +99,17 @@ int writeBlock(int blockPos, char* data, int dataSize);
  * -1 -> caso tenha falhado
 */
 int readBlock(int blockPos, char* data, int dataSize);
+
+
+/*
+ * Retorna a posição do bloco de dados dentro do disco
+ * @params:
+ * dataBlockPos  -> posição do bloco dentro do bitmap
+ * returns:
+ * >0  -> posição do bloco
+ * -1 -> caso tenha falhado
+*/
+int getDataBlockPosition(int dataBlockPos);
 
 
 /*
