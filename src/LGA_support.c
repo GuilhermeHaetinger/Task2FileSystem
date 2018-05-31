@@ -423,3 +423,51 @@ int allocateDataBlock(Inode inode){
   }
   ///TODO IND E DOUB IND
 }
+
+
+/// Receive one path string and fills a given ***char with each directory
+/// Arguments
+/// parse(@&list...)  being list a char**
+/// parse(...,string) being string a char[]
+/// Returns number of strings filled in the list
+/// Access list as an array of strings ("%s", list[1])
+int parse (char ***lista,char * string) {
+
+   const char token[2] = "/";
+   char *tokenString;
+   int words = 0, i = 0;
+
+    ///Count number of /
+   while(string[i] != '\0')
+   {
+        if(string[i] == '/')
+        {
+            words++;
+        }
+        i++;
+   }
+
+   ///If not empty path, then sum 1 for the last word if it hasn't /
+   if(words > 0 && string[i-1]!= '/')
+   {
+        words++;
+   }
+
+   ///Allocate memory for the array of strings
+   *lista = malloc(sizeof(char*) * words);
+   i=0;
+
+    /// get the first token
+   tokenString = strtok(string, token);
+
+   /// walk through other tokens
+   while( tokenString != NULL ) {
+    (*lista)[i] = malloc(sizeof(char) * (strlen(tokenString) + 1)); ///Allocate memory at the current index for a string of the len of the current tokenString
+    strcpy((*lista)[i],tokenString);                                ///Copy actual tokenString to the allocated index
+    i++;
+    tokenString = strtok(NULL, token);
+
+   }
+
+    return words;
+}
