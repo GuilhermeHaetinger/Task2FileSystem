@@ -9,7 +9,6 @@ int inodeWritingTest();
 int blockWritingTest();
 
 int main(){
-  initializeSuperBlock();
   create2("Meu_Arquivo");
   printAllEntries(openDirectory);
 }
