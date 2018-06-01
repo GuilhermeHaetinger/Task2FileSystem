@@ -91,10 +91,10 @@ FILE2 create2 (char *filename){
 	}
 
   if (addFileToOpenDirectory(file) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[create2] dasfsafsa");
+    LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
     return FAILED;
   }
-  LGA_LOGGER_ERROR("[create2] FOI");
+  LGA_LOGGER_ERROR("[create2] Added file to directory");
 
 
   return fileHandler;
