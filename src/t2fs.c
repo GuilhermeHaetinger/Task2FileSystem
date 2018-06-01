@@ -54,41 +54,50 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 FILE2 create2 (char *filename){
 
 	if(initializeSuperBlock() != 0){
-		LGA_LOGGER_ERROR("SuperBlock not properly initiated");
+		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
 		return FAILED;
 	}
 
-
-	LGA_LOGGER_LOG("SuperBlock initialized");
-
+	LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
+  if (alreadyExists(filename, openDirectory) != NOT_FOUND) {
+    LGA_LOGGER_WARNING("[create2] Already exist a file with that name");
+    return FAILED;
+  }
 	FileRecord file;
 
-	LGA_LOGGER_LOG("Searching for inode position");
+	LGA_LOGGER_LOG("[create2] Searching for inode position");
 
 	DWORD inodePos = getFreeInode();
 
 	file.TypeVal = TYPEVAL_REGULAR;
-  	strncpy(file.name, filename, 59);
+  strncpy(file.name, filename, 59);
 	file.inodeNumber = inodePos;
 
-	LGA_LOGGER_LOG("Adding record to open file vector");
+	LGA_LOGGER_LOG("[create2] Adding record to open file vector");
 	FILE2 fileHandler = addFileToOpenFiles(file);
 	if(fileHandler == FAILED){
-		LGA_LOGGER_ERROR("File record isn't openable");
+		LGA_LOGGER_ERROR("[create2] File record isn't openable");
 		return FAILED;
 	}
 
-	LGA_LOGGER_LOG("Creating inode");
+	LGA_LOGGER_LOG("[create2] Creating inode");
 
 	Inode fileInode;
 	initializeInode(&fileInode);
 
 	if(saveInode(inodePos, (char *)&fileInode) != 0){
-		LGA_LOGGER_ERROR("Inode not saved properly");
+		LGA_LOGGER_ERROR("[create2] Inode not saved properly");
 		return FAILED;
 	}
-	
-  	return fileHandler;
+
+  if (addFileToOpenDirectory(file) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[create2] dasfsafsa");
+    return FAILED;
+  }
+  LGA_LOGGER_ERROR("[create2] FOI");
+
+
+  return fileHandler;
 }
 
 

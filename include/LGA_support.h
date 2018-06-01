@@ -8,7 +8,8 @@
 #define ALREADY_INITIALIZED -2
 #define END_CONTEXT 0
 #define STACK_SIZE 163840
-
+#define NOT_FOUND  1
+#define FOUND      0
 #define MAX_NUM_OF_OPEN_FILES 10
 
 #define INODE_TYPE 0
@@ -24,7 +25,8 @@
 
 #define REGISTER_SIZE 64
 
-#define ENTRY_ENABLED -2
+#define BLOCK_FULL -3
+
 
 /*  tipos   */
 typedef struct t2fs_superbloco SuperBlock;
@@ -207,7 +209,7 @@ int getOffsetInode(DWORD inodePos);
  * diskSector -> setor original
  * saveSector -> setor a ser salvo
 */
-void changeSector(int start, char* data, int dataSize, char* diskSector, char* saveSector);
+void changeSectorInode(int start, char* data, int dataSize, char* diskSector, char* saveSector);
 
 /*
  * Limpa um array com 0 no lugar dos valores.
@@ -254,29 +256,31 @@ int getRootInode(char* buffer);
 void concatCustom(char* concatened, int concatStartPos, char* buffer, int bufferSize);
 
 /*
- * Pega um registerFile de um setor
+ * Pega um registerFile de um buffer dado
  * * @params:
- * sectorPos -> Posicao do setor
  * registerNumber -> Posicao do registro dentro do setor
+ * diskBuffer -> Buffer que contem as informacoes do disco
+ * diskBufferSize -> Tamanho do disBuffer
  * buffer -> Vetor que recebera o register
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int getRegisterFile(int sectorPos, int registerNumber, char *buffer);
+int getRegisterFile(int registerNumber, char* diskBuffer, int diskBufferSize, char *buffer);
 
 /*
  * Pega os dados de um diskSector e coloca no saveSector
  * * @params:
+ * buffer -> Buffer para receber os dados
  * start -> Ponto inicial do daoo no setor
  * dataSize -> Tamanho do dado a ser pego
- * diskSector -> Setor a ter os dados pegos
- * saveSector -> Buffer para receber os dados
+ * diskBuffer -> Setor a ter os dados pegos
+ * diskSize   -> Tamanho do disco
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int getDataSector(int start, int dataSize, char* diskSector, char* buffer);
+int getDataFromDisk(char *buffer, int start, int dataSize, char* diskBuffer, int diskSize);
 
 /*
  * Salva o arquivo no diretório atual
@@ -297,7 +301,7 @@ int addFileToOpenDirectory(FileRecord file);
 int getNewFilePositionOnOpenDirectory();
 
 /*
- * aloca os blocos para posicionar os registros 
+ * aloca os blocos para posicionar os registros
  * *@params:
  * inode -> inode em questão
  * returns:
@@ -305,3 +309,78 @@ int getNewFilePositionOnOpenDirectory();
  * -1  -> caso tenha falhado
 */
 int allocateDataBlock(Inode inode);
+
+/*
+ * aloca os blocos para posicionar os registros
+ * *@params:
+ * ptr -> Recebe o ponteiro de um inteiro que tem o valor de um ponteiro
+ * returns:
+ * >0  -> posicao
+ * -1  -> caso tenha falhado
+ * -2  -> caso o o ponteiro do bloco ja esteja cheio
+*/
+int searchNewFileRecordPosition(DWORD *ptr);
+
+/*
+ * escreve no bloco a data sem esvaziar o bloco inteiro
+ * *@params:
+ * blockPos -> Posicao do bloco
+ * dataPos -> A partir de onde a data sera escrita
+ * data -> Data a ser escrita
+ * dataSize -> Tamanho da data
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int changeWriteBlock(int blockPos, int dataPos, char* data, int dataSize);
+
+/*
+ * Copia o que tem no disco, substituindo os dados nas posicoes corretas
+ * sem apagar o disco
+ * *@params:
+ * start -> a partir de qual posicao vai escrever
+ * data -> data a ser escrita
+ * dataSize -> tamanho da data
+ * diskSector -> buffer do dano a ser modificado
+ * diskSize -> tamanho do buffer
+ * saveSector -> buffer que recebera a modificacao
+ * returns:
+ * void
+*/
+void changeDisk(int start, char* data, int dataSize, char* diskSector, int diskSize, char* saveSector);
+
+/*
+ * Escreve um FileRecord em um inode
+ * *@params:
+ * inode -> inode
+ * buffer -> FileRecord a ser escrito
+ * position -> Posicao do FileRecord
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int writeFilePositionInInode(Inode inode, char *buffer, int position);
+
+/*
+ * Printa todas as entradas de um iNode
+ * *@params:
+ * inode -> inode
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int printAllEntries(Inode inode);
+
+/*
+ * Printa as entradas de um ponteiro
+ * *@params:
+ * ptr -> Ponteiro para um bloco de registros
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int _printEntries(DWORD ptr);
+
+int _alreadyExists(DWORD ptr, char* filename);
+
+int alreadyExists(char* filename, Inode inode);

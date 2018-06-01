@@ -9,14 +9,14 @@ int inodeWritingTest();
 int blockWritingTest();
 
 int main(){
-  LGA_LOGGER_TEST("Setting blockFileSize value to 3");
-
-  createRoot();
-  char buffer[INODE_SIZE],  registerF[REGISTER_SIZE];
-  getRoot(buffer);
-
-  getRegisterFile(((Inode*)buffer)->dataPtr[0], 1, registerF);
-  if(strcmp(((FileRecord*)registerF)->name,"..") == 0)
-    LGA_LOGGER_TEST("TOP");
+  // LGA_LOGGER_TEST("Setting blockFileSize value to 3");
+  //
+  // createRoot();
+  // char buffer[INODE_SIZE],  registerF[REGISTER_SIZE];
+  // getRoot(buffer);
+  //
+  // getRegisterFile(((Inode*)buffer)->dataPtr[0], 1, registerF);
+  // if(strcmp(((FileRecord*)registerF)->name,"..") == 0)
+  //   LGA_LOGGER_TEST("TOP");
 
 }
