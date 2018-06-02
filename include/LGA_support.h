@@ -43,6 +43,7 @@ typedef struct RecordHandlerStruct{
 /*  dados   */
 SuperBlock superBlock;
 bool superBlockRead;
+FileRecord closedRecord;
 
 
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
@@ -167,6 +168,38 @@ int getInode(DWORD inodePos, char* data);
  *  < 0  -> caso não há mais espaço
 */
 FILE2 addFileToOpenFiles(FileRecord file);
+
+/*
+ * Remove o arquivo aberto do vetor de arquivos abertos
+ * @params:
+ * handler -> índice do arquivo no vetor
+ * returns:
+ *  >= 0 -> caso remova propriamente
+ *  < 0  -> caso não consiga
+*/
+int removeFileFromOpenFiles(FILE2 handler);
+
+/*
+ * Abstração da criação de Records - tanto para diretórios quanto para regular files
+ * @params:
+ * name -> nome do novo arquivo
+ * typeVal -> valor do tipo do arquivo
+ * fileRecord -> buffer de armazenamento dos dados do Record
+ * returns:
+ *  >= 0 -> caso crie propriamente
+ *  < 0  -> caso não
+*/
+int createRecord(char * name, BYTE typeVal, FileRecord * fileRecord);
+
+/*
+ * Criação de inode para um RecordFile
+ * @params:
+ * file -> Record para o qual criaremos um inode
+ * returns:
+ *  >= 0 -> caso crie propriamente
+ *  < 0  -> caso não
+*/
+int createRecordInode(FileRecord file);
 
 /*
  * Busca a posição do primeiro inode free
@@ -390,3 +423,19 @@ int _printEntries(DWORD ptr);
 int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode);
 
 int getFileInode(char* filename, Inode inode, FileRecord * fileInode);
+
+/*
+ * Entra em um diretório específico dentro do diretório atual
+ * *@params:
+ * directoryName -> nome do diretório
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int setNewOpenDirectory(char * directoryName);
+
+int findFileRecordOnDirectory(char * file);
+
+FILE2 findProperPositionOnOpenFiles();
+
+int initialiizeOpenFiles();

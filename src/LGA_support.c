@@ -29,7 +29,7 @@ int DOUBLE_ENTRY           = 0;
 int initializeSuperBlock(){
   if(!superBlockRead){
     LGA_LOGGER_DEBUG("Superblock wasn't read yet");
-
+    initialiizeOpenFiles();
     if(readSuperblock() != SUCCEEDED){
       LGA_LOGGER_ERROR("[initializeSystem] superBlock not read properly");
       return FAILED;
@@ -86,6 +86,50 @@ int readSuperblock() {
 /* --------- FILE_REGISTER_SECTION  ---------- */
 /* ################################ */
 
+int initialiizeOpenFiles(){
+  closedRecord.TypeVal = TYPEVAL_INVALIDO;
+  int i;
+  recordHandler nullRecord;
+  nullRecord.CP = -1;
+  nullRecord.file = closedRecord;
+  for(i = 0; i<MAX_NUM_OF_OPEN_FILES; i++){
+    openFiles[i] = nullRecord;
+  }
+}
+
+int createRecord(char * name, BYTE typeVal, FileRecord * file){
+  LGA_LOGGER_DEBUG("[createRecord] Entering createRecord");
+  FileRecord *inodeAux =  malloc(sizeof (FileRecord));
+
+  if (getFileInode(name, openDirectory, inodeAux) != NOT_FOUND) {
+  LGA_LOGGER_WARNING("[createRecord] Already exist a file with that name");
+  return FAILED;
+ 	}
+
+	LGA_LOGGER_LOG("[createRecord] Searching for inode position");
+
+	DWORD inodePos = getFreeInode();
+
+	file->TypeVal = typeVal;
+  strncpy(file->name, name, 59);
+	file->inodeNumber = inodePos;
+
+  free(inodeAux);
+  return SUCCEEDED;
+}
+
+int createRecordInode(FileRecord file){
+  LGA_LOGGER_DEBUG("[createRecordInode] Entering CreatingRecordInode");
+  Inode fileInode;
+	initializeInode(&fileInode);
+
+	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
+		LGA_LOGGER_ERROR("[createRecordInode] Inode not saved properly");
+		return FAILED;
+	}
+  return SUCCEEDED;
+}
+
 int getRegisterFile(int registerNumber, char* diskBuffer, int diskBufferSize, char *buffer) {
   if (registerNumber * REGISTER_SIZE > diskBufferSize) {
     LGA_LOGGER_ERROR("[getRegisterFile] registerNumber is greater than diskBufferSize");
@@ -109,14 +153,33 @@ FILE2 addFileToOpenFiles(FileRecord file){
   record.file = file;
   record.CP = 0;
 
+  FILE2 available_pos = findProperPositionOnOpenFiles();
   LGA_LOGGER_LOG("recordHandler being added");
-  openFiles[openFilesHandler] = record;
+
+  openFiles[available_pos] = record;
 
   LGA_LOGGER_LOG("handler being increased");
   openFilesHandler++;
 
-  return openFilesHandler - 1;
+  return available_pos;
 
+}
+
+int removeFileFromOpenFiles(FILE2 handler){
+  recordHandler nullHandler;
+  if(handler < openFilesHandler && handler >= 0){
+    nullHandler.CP = -1;
+    nullHandler.file = closedRecord;
+    openFiles[handler] = nullHandler;
+
+    openFilesHandler--;
+    LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
+    return SUCCEEDED;
+
+  }else{
+    LGA_LOGGER_ERROR("There is no file open with this handler");
+    return FAILED;
+  }
 }
 
 int addFileToOpenDirectory(FileRecord file){
@@ -514,6 +577,28 @@ int rootCreated() {
 }
 
 /* ################################ */
+/* --------   DIRECTORY-SECTION  ------- */
+/* ################################ */
+
+int setNewOpenDirectory(char * directoryName){
+    FileRecord *dir = malloc(sizeof (FileRecord));
+    if (getFileInode(directoryName, openDirectory, dir) == NOT_FOUND) {
+      LGA_LOGGER_WARNING("Directory not found in this directory");
+      return FAILED;
+    }else{
+      Inode dirInode;
+      if(getInode(dir->inodeNumber, (char * )&dirInode) != SUCCEEDED){
+        LGA_LOGGER_ERROR("Couldn't read new directory's inode");
+        return FAILED;
+      }else{
+        LGA_LOGGER_DEBUG("Changed the directory");
+        openDirectory = dirInode;
+        return SUCCEEDED;
+      }
+    }
+}
+
+/* ################################ */
 /* ---------- AUXILIARES  --------- */
 /* ################################ */
 
@@ -739,6 +824,28 @@ DWORD _getDirFilenameInode(DWORD ptr, char* filename) {
     }
   }
   return (DWORD) INVALID_PTR;
+}
+
+int findFileRecordOnDirectory(char * filename){
+  FileRecord *file = malloc(sizeof (FileRecord));
+  if (getFileInode(filename, openDirectory, file) == NOT_FOUND) {
+    LGA_LOGGER_WARNING("File not found in this directory");
+    return FAILED;
+  }else{
+    LGA_LOGGER_DEBUG("File found");
+    return SUCCEEDED;
+  }
+}
+
+FILE2 findProperPositionOnOpenFiles(){
+  LGA_LOGGER_DEBUG("entered find proper position");
+  int pos;
+  for(pos = 0; pos <= openFilesHandler; pos++){
+    if(openFiles[pos].CP == -1){
+      return pos;
+    }
+  }
+  return FAILED;
 }
 
 /// Receive one path string and fills a given ***char with each directory

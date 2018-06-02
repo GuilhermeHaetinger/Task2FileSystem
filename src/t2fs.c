@@ -52,52 +52,42 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
+
+    LGA_LOGGER_DEBUG("[Entering create2]");
 	if(initializeSuperBlock() != 0){
 		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
 		return FAILED;
 	}
 
 	LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
-  FileRecord *inodeAux =  malloc(sizeof (FileRecord));
-  if (getFileInode(filename, openDirectory, inodeAux) != NOT_FOUND) {
-    LGA_LOGGER_WARNING("[create2] Already exist a file with that name");
-    return FAILED;
-  }
+
 	FileRecord file;
-
-	LGA_LOGGER_LOG("[create2] Searching for inode position");
-
-	DWORD inodePos = getFreeInode();
-
-	file.TypeVal = TYPEVAL_REGULAR;
-  strncpy(file.name, filename, 59);
-	file.inodeNumber = inodePos;
+	LGA_LOGGER_DEBUG("[create2] Creating FileRecord");
+	if(createRecord(filename, TYPEVAL_REGULAR, &file) != SUCCEEDED){
+		return FAILED;
+	}
+	LGA_LOGGER_DEBUG("[create2] FileRecord created");
 
 	LGA_LOGGER_LOG("[create2] Adding record to open file vector");
 	FILE2 fileHandler = addFileToOpenFiles(file);
-	if(fileHandler == FAILED){
+	if(fileHandler < SUCCEEDED){
 		LGA_LOGGER_ERROR("[create2] File record isn't openable");
 		return FAILED;
 	}
 
 	LGA_LOGGER_LOG("[create2] Creating inode");
-
-	Inode fileInode;
-	initializeInode(&fileInode);
-
-	if(saveInode(inodePos, (char *)&fileInode) != 0){
-		LGA_LOGGER_ERROR("[create2] Inode not saved properly");
+	if(createRecordInode(file) != SUCCEEDED){
 		return FAILED;
 	}
+	LGA_LOGGER_LOG("[create2] Inode created");
+	
+  	if (addFileToOpenDirectory(file) != SUCCEEDED) {
+  	  LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
+  	  return FAILED;
+  	}
+  	LGA_LOGGER_LOG("[create2] Added file to directory");
 
-  if (addFileToOpenDirectory(file) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
-    return FAILED;
-  }
-  LGA_LOGGER_LOG("[create2] Added file to directory");
-
-  free(inodeAux);
-  return fileHandler;
+  	return fileHandler;
 }
 
 
@@ -115,10 +105,10 @@ int delete2 (char *filename){
 
     LGA_LOGGER_DEBUG("[Entering delete2]");
     if(initializeSuperBlock() != 0){
-  		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
+  		LGA_LOGGER_ERROR("[delete2] SuperBlock not properly initiated");
   		return FAILED;
   	}
-    LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
+    LGA_LOGGER_DEBUG("[delete2] SuperBlock initialized");
     FileRecord *fileInode = malloc(sizeof (FileRecord));
     if (getFileInode(filename, openDirectory, fileInode) == NOT_FOUND) {
       return FAILED;
@@ -159,8 +149,20 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo
 -----------------------------------------------------------------------------*/
 FILE2 open2 (char *filename){
-    ///TODO
-    return FAILED;
+	LGA_LOGGER_DEBUG("Entering open2");
+	FileRecord file;
+	if(findFileRecordOnDirectory(filename) != SUCCEEDED){
+		LGA_LOGGER_ERROR("File not found in directory");
+		return FAILED;
+	}
+
+    LGA_LOGGER_LOG("[open2] Adding record to open file vector");
+	FILE2 fileHandler = addFileToOpenFiles(file);
+	if(fileHandler < SUCCEEDED){
+		LGA_LOGGER_ERROR("[open2] File record isn't openable");
+		return FAILED;
+	}
+    return SUCCEEDED;
 }
 
 /*-----------------------------------------------------------------------------
@@ -172,8 +174,13 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 	Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int close2 (FILE2 handle){
-    ///TODO
-    return FAILED;
+    LGA_LOGGER_DEBUG("Entering close2");
+	if(removeFileFromOpenFiles(handle) != SUCCEEDED){
+		return FAILED;
+	}
+	LGA_LOGGER_DEBUG("File closed");
+
+    return SUCCEEDED;
 }
 
 
@@ -262,8 +269,37 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 	Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int mkdir2 (char *pathname){
-    ///TODO
-    return FAILED;
+	///
+	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
+	///
+    LGA_LOGGER_DEBUG("[Entering mkdir2]");
+	if(initializeSuperBlock() != 0){
+		LGA_LOGGER_ERROR("[mkdir2] SuperBlock not properly initiated");
+		return FAILED;
+	}
+
+	LGA_LOGGER_DEBUG("[mkdir2] SuperBlock initialized");
+
+	FileRecord file;
+	LGA_LOGGER_DEBUG("[mkdir2] Creating FileRecord");
+	if(createRecord(pathname, TYPEVAL_DIRETORIO, &file) != SUCCEEDED){
+		return FAILED;
+	}
+	LGA_LOGGER_DEBUG("[mkdir2] FileRecord created");
+
+	LGA_LOGGER_LOG("[mkdir2] Creating inode");
+	if(createRecordInode(file) != SUCCEEDED){
+		return FAILED;
+	}
+	LGA_LOGGER_LOG("[mkdir2] Inode created");
+	
+  	if (addFileToOpenDirectory(file) != SUCCEEDED) {
+  	  LGA_LOGGER_ERROR("[mkdir2] Failed to add file to directory");
+  	  return FAILED;
+  	}
+  	LGA_LOGGER_LOG("[mkdir2] Added file to directory");
+
+    return SUCCEEDED;
 }
 
 
@@ -301,8 +337,15 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 		Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int chdir2 (char *pathname){
-    ///TODO
-    return FAILED;
+	///
+	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
+	///
+	LGA_LOGGER_DEBUG("Entering chdir2");
+	if(setNewOpenDirectory(pathname) != SUCCEEDED){
+		return FAILED;
+	}
+
+    return SUCCEEDED;
 }
 
 

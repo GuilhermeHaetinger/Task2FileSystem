@@ -1,8 +1,12 @@
 LIB_DIR=../lib
 BIN_DIR=../bin
 SRC_DIR=../src
+FRS_DAT=../fresh_dat
 TST_DIR=./
 BUILD_DIR=build
+
+resetDat:
+	cp $(FRS_DAT)/t2fs_disk.dat ./
 
 create:
 	rm -rf build
@@ -11,6 +15,14 @@ create:
 	$(CC) -c $(SRC_DIR)/LGA_logger.c -o $(BIN_DIR)/LGA_logger.o
 	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
 	$(CC) -o $(BUILD_DIR)/create2test.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o create2test.c  -lm -Wall
+
+open:
+	rm -rf build
+	mkdir $(BUILD_DIR)
+	$(CC) -c $(SRC_DIR)/t2fs.c -o $(BIN_DIR)/t2fs.o
+	$(CC) -c $(SRC_DIR)/LGA_logger.c -o $(BIN_DIR)/LGA_logger.o
+	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
+	$(CC) -o $(BUILD_DIR)/open2test.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o open2test.c  -lm -Wall
 
 support:
 	rm -rf build
@@ -35,3 +47,11 @@ directoryTest:
 	$(CC) -c $(SRC_DIR)/LGA_logger.c -o $(BIN_DIR)/LGA_logger.o
 	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
 	$(CC) -o $(BUILD_DIR)/directoryTest.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o directoryTest.c  -lm -Wall
+
+mkdir_chdirTest:
+	rm -rf build
+	mkdir $(BUILD_DIR)
+	$(CC) -c $(SRC_DIR)/t2fs.c -o $(BIN_DIR)/t2fs.o
+	$(CC) -c $(SRC_DIR)/LGA_logger.c -o $(BIN_DIR)/LGA_logger.o
+	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
+	$(CC) -o $(BUILD_DIR)/mkdir_chdir.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o mkdir_chdir.c  -lm -Wall
