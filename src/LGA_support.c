@@ -215,7 +215,7 @@ int printAllEntries(Inode inode) {
     }
   }
   if (inode.dataPtr[1] != INVALID_PTR) {
-    if (_printEntries(inode.dataPtr[0]) != SUCCEEDED) {
+    if (_printEntries(inode.dataPtr[1]) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[printAllEntries] couldnt print the second entry");
       return FAILED;
     }
@@ -601,11 +601,8 @@ void changeDisk(int start, char* data, int dataSize, char* diskSector, int diskS
   for(i = 0; i < diskSize; i++) {
     if (i >= start && i < dataSize+start) {
       saveSector[i] = data[i - start];
-      printf("%c",saveSector[i] );
     } else {
       saveSector[i] = diskSector[i];
-      printf("%c",saveSector[i] );
-
     }
   }
 }
