@@ -664,17 +664,11 @@ int _printEntries(DWORD ptr) {
       return FAILED;
     }
 
-    //TODO como isso funcionava sem isso?
-    if(((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_INVALIDO)
-    {
-      LGA_LOGGER_WARNING("ACABARAM OS ARQUIVOS NESSE PONTEIRO");
-      break;
-    }
-
-
     if (strlen(((FileRecord*) registerBuffer)->name) > 0) {
       if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_REGULAR) {
+        printf("%s  ",((FileRecord*) registerBuffer)->name);
       } else if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_DIRETORIO) {
+        printf("%s/  ",((FileRecord*) registerBuffer)->name);
       }
     }
   }
