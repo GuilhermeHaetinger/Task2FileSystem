@@ -52,14 +52,14 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 	Em caso de erro, deve ser retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 FILE2 create2 (char *filename){
-
 	if(initializeSuperBlock() != 0){
 		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
 		return FAILED;
 	}
 
 	LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
-  if (alreadyExists(filename, openDirectory) != NOT_FOUND) {
+  FileRecord *inodeAux =  malloc(sizeof (FileRecord));
+  if (getFileInode(filename, openDirectory, inodeAux) != NOT_FOUND) {
     LGA_LOGGER_WARNING("[create2] Already exist a file with that name");
     return FAILED;
   }
@@ -96,7 +96,7 @@ FILE2 create2 (char *filename){
   }
   LGA_LOGGER_LOG("[create2] Added file to directory");
 
-
+  free(inodeAux);
   return fileHandler;
 }
 
@@ -113,17 +113,33 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 int delete2 (char *filename){
     ///TODO
 
+    LGA_LOGGER_DEBUG("[Entering delete2]");
     if(initializeSuperBlock() != 0){
   		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
   		return FAILED;
   	}
     LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
-
-    if (alreadyExists(filename, openDirectory) != NOT_FOUND) {
-      LGA_LOGGER_WARNING("[create2] ACHOOO MESMO NAME");
+    FileRecord *fileInode = malloc(sizeof (FileRecord));
+    if (getFileInode(filename, openDirectory, fileInode) == NOT_FOUND) {
       return FAILED;
     }
 
+    fileInode->TypeVal = TYPEVAL_INVALIDO;
+    int inodeNumber = fileInode->inodeNumber;
+
+    if(setInode(inodeNumber, (char *)fileInode) != 0){
+  		//LGA_LOGGER_ERROR("[create2] Inode not saved properly");
+  		return FAILED;
+  	}
+    setBitmap2(INODE_TYPE, inodeNumber, INODE_FREE);
+    //LGA_LOGGER_WARNING("(: YHUHUHUHUHUHUHUU");
+
+    //Para os inodes de fato
+    // inodes->blocksFileSize = 0;
+    // inodes->bytesFileSize = 0;
+    // inodes->dataPtr[0] = INVALID_PTR;
+    // inodes->dataPtr[1] = INVALID_PTR;
+    free(fileInode);
     return FAILED;
 }
 

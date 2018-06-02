@@ -9,6 +9,11 @@ int inodeWritingTest();
 int blockWritingTest();
 
 int main(){
-  create2("Meu_Arquivo");
+  create2("oioioioioi.txt");
+  delete2("oioioioioi.txt");
+  // WORD inodePos Andy.txt = 13
+  // Inode fileInode Andy.txt = 0xffdd3ebc
+  // setor inode Andy.txt = 13
+  // offset setor inodePos Andy.txt = 13
   printAllEntries(openDirectory);
 }

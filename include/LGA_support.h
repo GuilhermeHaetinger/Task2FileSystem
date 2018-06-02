@@ -380,8 +380,13 @@ int printAllEntries(Inode inode);
  * 0  ->  sucesso
  * -1  -> caso tenha falhado
 */
+
+DWORD getDirFilenameInode(char* filename, Inode inode);
+
+DWORD _getDirFilenameInode(DWORD ptr, char* filename);
+
 int _printEntries(DWORD ptr);
 
-int _alreadyExists(DWORD ptr, char* filename);
+int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode);
 
-int alreadyExists(char* filename, Inode inode);
+int getFileInode(char* filename, Inode inode, FileRecord * fileInode);

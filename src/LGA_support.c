@@ -120,7 +120,7 @@ FILE2 addFileToOpenFiles(FileRecord file){
 }
 
 int addFileToOpenDirectory(FileRecord file){
-  int accessedPtr = -1, newBlock = 0;;
+  int accessedPtr = -1, newBlock = 0;
   int position = getNewFilePositionOnOpenDirectory(&accessedPtr, &newBlock);
   if (position < 0) {
     LGA_LOGGER_ERROR("[addFileToOpenDirectory] Couldnt add file to directory");
@@ -196,7 +196,7 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
     }
 
     //Quando achar um registro de diretorio disponivel o retorna
-    if(((FileRecord*)registerBuffer)->TypeVal == 0) {
+    if(((FileRecord*)registerBuffer)->TypeVal == TYPEVAL_INVALIDO) {
       LGA_LOGGER_LOG("[searchNewFileRecordPosition] Get the position");
       return position;
     }
@@ -356,8 +356,10 @@ int saveInode(DWORD inodePos, char* data){
   }
 
   //Seta a posicao do inode para ocupado no bitmap
-  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+  int result;
 
+  //TODO talvez testar se consegue lockar direito inode
+  result = setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
   //Obtem o setor onde se encontra o inode
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
@@ -386,8 +388,7 @@ int saveInode(DWORD inodePos, char* data){
 
 int setInode(DWORD inodePos, char* data){
 
-  LGA_LOGGER_DEBUG("[setInode] Setting iNode to busy on bitmap");
-  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
   char diskSector[SECTOR_SIZE];
@@ -403,7 +404,6 @@ int setInode(DWORD inodePos, char* data){
   char sectorData[SECTOR_SIZE];
   changeSectorInode(offset, data, INODE_SIZE, diskSector, sectorData);
   LGA_LOGGER_DEBUG("[setInode] writing new inode block");
-
   write_sector(inodeSectorPos, sectorData);
   LGA_LOGGER_LOG("[setInode] Successfully");
   return SUCCEEDED;
@@ -479,6 +479,8 @@ int createRoot() {
 
   rootInode.dataPtr[0] = sectorPos;
 
+  setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
+  LGA_LOGGER_DEBUG("[createRoot] Setting iNode to busy on bitmap");
   setInode(ROOT_INODE, (char *)&rootInode);
   LGA_LOGGER_LOG("[createRoot] Root created");
   return SUCCEEDED;
@@ -576,11 +578,18 @@ int _printEntries(DWORD ptr) {
       LGA_LOGGER_ERROR("[_printEntries] couldnt get the register file");
       return FAILED;
     }
+
+    //TODO como isso funcionava sem isso?
+    if(((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_INVALIDO)
+    {
+      LGA_LOGGER_WARNING("ACABARAM OS ARQUIVOS NESSE PONTEIRO");
+      break;
+    }
+
+
     if (strlen(((FileRecord*) registerBuffer)->name) > 0) {
       if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_REGULAR) {
-        printf(".%s  ",((FileRecord*) registerBuffer)->name);
       } else if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_DIRETORIO) {
-        printf("./%s  ",((FileRecord*) registerBuffer)->name);
       }
     }
   }
@@ -603,6 +612,7 @@ void changeDisk(int start, char* data, int dataSize, char* diskSector, int diskS
       saveSector[i] = data[i - start];
     } else {
       saveSector[i] = diskSector[i];
+
     }
   }
 }
@@ -620,36 +630,65 @@ int getDataFromDisk(char *buffer, int start, int dataSize, char* diskBuffer, int
   return SUCCEEDED;
 }
 
-int alreadyExists(char* filename, Inode inode) {
+int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
+
+  int searchResult;
+  //Procura no dataPtr[0] do register pelo inode com nome do arquivo a pesquisar
   if (inode.dataPtr[0] != INVALID_PTR) {
-   if (_alreadyExists(inode.dataPtr[0], filename) != NOT_FOUND) {
-      LGA_LOGGER_WARNING("[alreadyExists] couldnt verify the first entry");
-      return FAILED;
+    searchResult = _getFileInode(inode.dataPtr[0], filename, fileInode);
+   if ( searchResult != NOT_FOUND) {
+     if (searchResult == FOUND) {
+         LGA_LOGGER_WARNING("[getFileInode] this filename already exists in the current directory");
+        return FOUND;
+     }
+     else{
+        LGA_LOGGER_WARNING("[getFileInode] couldnt verify the first entry");
+        return FAILED;
+      }
     }
   }
+
+  //Procura no dataPtr[1] do register pelo inode com nome do arquivo a pesquisar
   if (inode.dataPtr[1] != INVALID_PTR) {
-   if (_alreadyExists(inode.dataPtr[1], filename) != NOT_FOUND) {
-      LGA_LOGGER_WARNING("[alreadyExists] couldnt verify the second entry");
-      return FAILED;
+    searchResult = _getFileInode(inode.dataPtr[1], filename, fileInode);
+   if ( searchResult != NOT_FOUND) {
+     if (searchResult == FOUND) {
+         LGA_LOGGER_WARNING("[getFileInode] this filename already exists in the current directory");
+        return FOUND;
+     }
+     else{
+        LGA_LOGGER_WARNING("[getFileInode] couldnt verify the second entry");
+        return FAILED;
+      }
     }
   }
   return NOT_FOUND;
 }
 
-int _alreadyExists(DWORD ptr, char* filename) {
+int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode) {
   char diskBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
 
+  //Le o bloco apontado por ptr e coloca no buffer
   if (readBlock(ptr, diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[_alreadyExists] couldnt read the entry");
+    LGA_LOGGER_ERROR("[_getFileInode] couldnt read the entry");
     return FAILED;
   }
 
+  //Le de registro em registro dentro do buffer
   for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
-      LGA_LOGGER_ERROR("[_alreadyExists] couldnt get the register file");
+      LGA_LOGGER_ERROR("[_getFileInode] couldnt get the register file");
       return FAILED;
     }
+    //TODO pq funcionava sem isso?
+    //Se o inode apontado é do tipo INVALID_PTR é porque acabaram os inodes validos do ptr passado
+    if(((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_INVALIDO)
+    {
+      break;
+    }
+    //Se registro possuir o nome passado é porque é o arquivo procurado
     if (strcmp(((FileRecord*) registerBuffer)->name, filename) == 0) {
+      *fileInode = *((FileRecord*) registerBuffer);
       return FOUND;
     }
   }
@@ -657,6 +696,50 @@ int _alreadyExists(DWORD ptr, char* filename) {
 }
 
 
+DWORD getDirFilenameInode(char* filename, Inode inode) {
+  DWORD searchResult;
+  if (inode.dataPtr[0] != INVALID_PTR) {
+    searchResult = _getDirFilenameInode(inode.dataPtr[0], filename);
+   if ( searchResult != (DWORD) INVALID_PTR) {
+      LGA_LOGGER_LOG("[getDirFilenameInode] filename inode found");
+      return searchResult;
+    }
+  }
+  if (inode.dataPtr[1] != INVALID_PTR) {
+    searchResult = _getDirFilenameInode(inode.dataPtr[1], filename);
+   if ( searchResult != NOT_FOUND) {
+      LGA_LOGGER_LOG("[getDirFilenameInode] filename inode found");
+      return searchResult;
+    }
+  }
+  return (DWORD) INVALID_PTR;
+}
+
+
+//Funcao auxiliar para procurar dentro de um bloco de inodes o que contenha o filename
+DWORD _getDirFilenameInode(DWORD ptr, char* filename) {
+  char diskBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
+
+  //Le o bloco apontado por ptr e coloca no buffer
+  if (readBlock(ptr, diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_getDirFilenameInode] couldnt read the entry");
+    return (DWORD) INVALID_PTR;
+  }
+
+  //Le de registro em registro dentro do buffer
+  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+    if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_getDirFilenameInode] couldnt get the register file");
+      return (DWORD) INVALID_PTR;
+    }
+
+    //Se registro possuir o nome passado é porque é o arquivo procurado
+    if (strcmp(((FileRecord*) registerBuffer)->name, filename) == 0) {
+      return ((FileRecord*) registerBuffer)->inodeNumber;
+    }
+  }
+  return (DWORD) INVALID_PTR;
+}
 
 /// Receive one path string and fills a given ***char with each directory
 /// Arguments
