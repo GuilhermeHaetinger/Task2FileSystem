@@ -314,12 +314,13 @@ int allocateDataBlock(Inode inode);
  * aloca os blocos para posicionar os registros
  * *@params:
  * ptr -> Recebe o ponteiro de um inteiro que tem o valor de um ponteiro
+ * newBlock -> Ponteiro para um inteiro usado como boolean se for alocado novo bloco
  * returns:
  * >0  -> posicao
  * -1  -> caso tenha falhado
  * -2  -> caso o o ponteiro do bloco ja esteja cheio
 */
-int searchNewFileRecordPosition(DWORD *ptr);
+int searchNewFileRecordPosition(DWORD *ptr, int *newBlock);
 
 /*
  * escreve no bloco a data sem esvaziar o bloco inteiro

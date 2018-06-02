@@ -120,8 +120,8 @@ FILE2 addFileToOpenFiles(FileRecord file){
 }
 
 int addFileToOpenDirectory(FileRecord file){
-  int position = getNewFilePositionOnOpenDirectory();
-  printf("%d\n", position);
+  int accessedPtr = -1, newBlock = 0;;
+  int position = getNewFilePositionOnOpenDirectory(&accessedPtr, &newBlock);
   if (position < 0) {
     LGA_LOGGER_ERROR("[addFileToOpenDirectory] Couldnt add file to directory");
     return FAILED;
@@ -131,24 +131,32 @@ int addFileToOpenDirectory(FileRecord file){
     return FAILED;
   }
   LGA_LOGGER_LOG("[addFileToOpenFiles] Success");
+
+  if (newBlock) {
+    //Seta como ocupado o bloco livre obtido
+    setBitmap2(BLOCK_TYPE,openDirectory.dataPtr[accessedPtr],1);
+  }
   return SUCCEEDED;
 }
 
-int getNewFilePositionOnOpenDirectory(){
+int getNewFilePositionOnOpenDirectory(int *accessedPtr,int *newBlock){
 
-  int try = searchNewFileRecordPosition(&(openDirectory.dataPtr[0]));
-
+  //Procura no bloco de registros apontado por dataPtr[0] algum registro valido/livre pra usar
+  int try = searchNewFileRecordPosition(&(openDirectory.dataPtr[0]),newBlock);
   if (try >= 0) {
     LGA_LOGGER_LOG("[getNewFilePositionOnOpenDirectory] Success");
+    *accessedPtr = 0;
     return try;
   } else if (try == FAILED) {
     LGA_LOGGER_ERROR("[getNewFilePositionOnOpenDirectory] Couldnt get the position");
     return FAILED;
   }
 
-  try = searchNewFileRecordPosition(&(openDirectory.dataPtr[1]));
+  //Caso cheio o ptr[0] procura no bloco de registros apontado por dataPtr[1]
+  try = searchNewFileRecordPosition(&(openDirectory.dataPtr[1]),newBlock);
   if (try >= 0) {
     LGA_LOGGER_LOG("[getNewFilePositionOnOpenDirectory] Success");
+    *accessedPtr = 1;
     return try + (REGISTERS_PER_BLOCK * 1);
   } else if (try == FAILED) {
     LGA_LOGGER_ERROR("[getNewFilePositionOnOpenDirectory] Couldnt get the position");
@@ -158,24 +166,36 @@ int getNewFilePositionOnOpenDirectory(){
   return FAILED;
 }
 
-int searchNewFileRecordPosition(DWORD *ptr) {
+int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
+  //Se o ponteiro estava invalid (desalocado), procura um bloco livre disponivel
   if (*ptr == INVALID_PTR) {
     LGA_LOGGER_LOG("[searchNewFileRecordPosition] Invalid Ptr");
     *ptr = getFreeBlock();
+
+    //Se nao há blocos livres disponiveis retorna erro
     if(*ptr < 0){
       LGA_LOGGER_ERROR("[searchNewFileRecordPosition] No available blocks");
       return FAILED;
     }
+    *newBlock = 1;
   }
+
+
+  //Cria os buffers para ler o bloco e mexer nos dados
   char blockBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
 
+  //Le o bloco apontado pelo ptr
   readBlock(*ptr, blockBuffer, BLOCK_SIZE_BYTES);
 
+  //Procura pelos registro de diretorios 1 a 1 no bloco em busca de um disponivel
   for (int position = 0; position < BLOCK_SIZE_BYTES/REGISTER_SIZE; position++) {
     if (getRegisterFile(position, blockBuffer, BLOCK_SIZE_BYTES, registerBuffer) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[searchNewFileRecordPosition] Couldnt get the register");
       return FAILED;
+      //TODO sepa nao seria return Failed, poderia prosseguir e setar como defeituoso(?)
     }
+
+    //Quando achar um registro de diretorio disponivel o retorna
     if(((FileRecord*)registerBuffer)->TypeVal == 0) {
       LGA_LOGGER_LOG("[searchNewFileRecordPosition] Get the position");
       return position;
@@ -186,6 +206,7 @@ int searchNewFileRecordPosition(DWORD *ptr) {
 }
 
 int printAllEntries(Inode inode) {
+
 
   if (inode.dataPtr[0] != INVALID_PTR) {
     if (_printEntries(inode.dataPtr[0]) != SUCCEEDED) {
@@ -326,14 +347,21 @@ void initializeInode(Inode * buffer){
 
 int saveInode(DWORD inodePos, char* data){
 
+
+  //Testa que a posicao do inode estava livre no bitmap
   LGA_LOGGER_DEBUG("[saveInode] Setting iNode to busy on bitmap");
   if(getBitmap2(INODE_TYPE, inodePos) == INODE_BUSY){
     LGA_LOGGER_ERROR("[saveInode] Inode Bitmap positionis already busy");
     return FAILED;
   }
+
+  //Seta a posicao do inode para ocupado no bitmap
   setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+
+  //Obtem o setor onde se encontra o inode
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
+  //Lê o que tem no setor inteiro onde se encontra também nosso inode
   char diskSector[SECTOR_SIZE];
   LGA_LOGGER_DEBUG("[saveInode] Reading inode sector");
   if(read_sector(inodeSectorPos, diskSector) != SUCCEEDED){
@@ -342,12 +370,15 @@ int saveInode(DWORD inodePos, char* data){
   }
   LGA_LOGGER_DEBUG("[saveInode] inode sector read properly");
 
+  //Calcula offset no setor para calcular inicio do nosso inode
   int offset = getOffsetInode(inodePos);
 
+  //Alter o setor modificando o inode passado e inserindo o data passado
   char sectorData[SECTOR_SIZE];
   changeSectorInode(offset, data, INODE_SIZE, diskSector, sectorData);
   LGA_LOGGER_DEBUG("[saveInode] writing new inode block");
 
+  //Atualiza o setor com o inode contendo o data e o resto de dados originais
   write_sector(inodeSectorPos, sectorData);
   LGA_LOGGER_LOG("[saveInode] Successfully");
   return SUCCEEDED;

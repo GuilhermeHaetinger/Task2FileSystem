@@ -94,7 +94,7 @@ FILE2 create2 (char *filename){
     LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
     return FAILED;
   }
-  LGA_LOGGER_ERROR("[create2] Added file to directory");
+  LGA_LOGGER_LOG("[create2] Added file to directory");
 
 
   return fileHandler;
@@ -112,6 +112,18 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 -----------------------------------------------------------------------------*/
 int delete2 (char *filename){
     ///TODO
+
+    if(initializeSuperBlock() != 0){
+  		LGA_LOGGER_ERROR("[create2] SuperBlock not properly initiated");
+  		return FAILED;
+  	}
+    LGA_LOGGER_DEBUG("[create2] SuperBlock initialized");
+
+    if (alreadyExists(filename, openDirectory) != NOT_FOUND) {
+      LGA_LOGGER_WARNING("[create2] ACHOOO MESMO NAME");
+      return FAILED;
+    }
+
     return FAILED;
 }
 
