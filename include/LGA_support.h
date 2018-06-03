@@ -11,6 +11,7 @@
 #define NOT_FOUND  1
 #define FOUND      0
 #define MAX_NUM_OF_OPEN_FILES 10
+#define MAX_NUM_OF_OPEN_DIRECTORIES 10
 
 #define INODE_TYPE 0
 #define BLOCK_TYPE 1
@@ -44,9 +45,11 @@ typedef struct RecordHandlerStruct{
 SuperBlock superBlock;
 bool superBlockRead;
 FileRecord closedRecord;
+Inode closedDir;
 
 
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
+Inode openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
 FileRecord openDirectoryFileRecord;
 
@@ -171,6 +174,16 @@ int getInode(DWORD inodePos, char* data);
 FILE2 addFileToOpenFiles(FileRecord file);
 
 /*
+ * Tenta adicionar o diret´orio ao vetor de diretórios abertos
+ * @params:
+ * dir -> diretório a ser adicionado
+ * returns:
+ *  >= 0 -> caso adicione propriamente (handler do diretório)
+ *  < 0  -> caso não há mais espaço
+*/
+DIR2 addDirToOpenDirs(Inode dir);
+
+/*
  * Remove o arquivo aberto do vetor de arquivos abertos
  * @params:
  * handler -> índice do arquivo no vetor
@@ -179,6 +192,16 @@ FILE2 addFileToOpenFiles(FileRecord file);
  *  < 0  -> caso não consiga
 */
 int removeFileFromOpenFiles(FILE2 handler);
+
+/*
+ * Remove o diretório aberto do vetor de diretórios abertos
+ * @params:
+ * handler -> índice do diretório no vetor
+ * returns:
+ *  >= 0 -> caso remova propriamente
+ *  < 0  -> caso não consiga
+*/
+int removeDirFromOpenDirs(DIR2 handler);
 
 /*
  * Abstração da criação de Records - tanto para diretórios quanto para regular files
@@ -449,5 +472,7 @@ int setNewOpenDirectory(char * directoryName);
 int findFileRecordOnDirectory(char * file);
 
 FILE2 findProperPositionOnOpenFiles();
+
+DIR2 findProperPositionOnOpenDirectories();
 
 int initialiizeOpenFiles();

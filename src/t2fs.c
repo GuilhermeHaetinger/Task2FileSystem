@@ -160,8 +160,13 @@ FILE2 open2 (char *filename){
 		LGA_LOGGER_ERROR("File not found in directory");
 		return FAILED;
 	}
-
-    LGA_LOGGER_LOG("[open2] Adding record to open file vector");
+	Inode InodeBuffer;
+	int position, accessedPtr;
+	if(getFileInode(filename, InodeBuffer, &file, &position, &accessedPtr) != SUCCEEDED){
+		LGA_LOGGER_ERROR("File not retrieved correctly");
+		return FAILED;
+	}
+	LGA_LOGGER_LOG("[open2] Adding record to open file vector");
 	FILE2 fileHandler = addFileToOpenFiles(file);
 	if(fileHandler < SUCCEEDED){
 		LGA_LOGGER_ERROR("[open2] File record isn't openable");
@@ -388,7 +393,10 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o ide
 	Em caso de erro, ser� retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 DIR2 opendir2 (char *pathname){
-    ///TODO
+    ///
+	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
+	///
+
     return FAILED;
 }
 

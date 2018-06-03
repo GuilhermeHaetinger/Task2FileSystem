@@ -11,6 +11,7 @@
 #include "../include/bitmap2.h"
 
 int openFilesHandler       = 0;
+int openDirHandler         = 0;
 int openDirectoriesHandler = 0;
 int INODE_SECTOR_INDEX     = 0;
 int INODE_PER_SECTOR       = 0;
@@ -29,7 +30,7 @@ int DOUBLE_ENTRY           = 0;
 int initializeSuperBlock(){
   if(!superBlockRead){
     LGA_LOGGER_DEBUG("Superblock wasn't read yet");
-    initialiizeOpenFiles();
+    initialiizeOpenFilesAndDirectories();
     if(readSuperblock() != SUCCEEDED){
       LGA_LOGGER_ERROR("[initializeSystem] superBlock not read properly");
       return FAILED;
@@ -86,7 +87,7 @@ int readSuperblock() {
 /* --------- FILE_REGISTER_SECTION  ---------- */
 /* ################################ */
 
-int initialiizeOpenFiles(){
+int initialiizeOpenFilesAndDirectories(){
   closedRecord.TypeVal = TYPEVAL_INVALIDO;
   int i;
   recordHandler nullRecord;
@@ -95,6 +96,12 @@ int initialiizeOpenFiles(){
   for(i = 0; i<MAX_NUM_OF_OPEN_FILES; i++){
     openFiles[i] = nullRecord;
   }
+  closedDir.blocksFileSize = -1;
+  closedDir.bytesFileSize  = -1;
+  for(i = 0; i<MAX_NUM_OF_OPEN_DIRECTORIES; i++){
+    openDirectories[i] = closedDir;
+  }
+  return SUCCEEDED;
 }
 
 int createRecord(char * name, BYTE typeVal, FileRecord * file){
@@ -196,7 +203,7 @@ FILE2 addFileToOpenFiles(FileRecord file){
 
 int removeFileFromOpenFiles(FILE2 handler){
   recordHandler nullHandler;
-  if(handler < openFilesHandler && handler >= 0){
+  if(handler < MAX_NUM_OF_OPEN_FILES && handler >= 0){
     nullHandler.CP = -1;
     nullHandler.file = closedRecord;
     openFiles[handler] = nullHandler;
@@ -614,23 +621,55 @@ int rootCreated() {
 /* ################################ */
 
 int setNewOpenDirectory(char * directoryName){
-    FileRecord dir;
-    int auxPosition, accessedPtr;
-    if (getFileInode(directoryName, openDirectory, &dir, &auxPosition, &accessedPtr) == NOT_FOUND) {
-      LGA_LOGGER_WARNING("Directory not found in this directory");
+  FileRecord dir;
+  int auxPosition, accessedPtr;
+  if (getFileInode(directoryName, openDirectory, &dir, &auxPosition, &accessedPtr) == NOT_FOUND) {
+    LGA_LOGGER_WARNING("[setNewOpenDirectory]Directory not found in this directory");
+    return FAILED;
+  }else{
+    Inode dirInode;
+    if(getInode(dir.inodeNumber, (char * )&dirInode) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[setNewOpenDirectory]Couldn't read new directory's inode");
       return FAILED;
     }else{
-      Inode dirInode;
-      if(getInode(dir.inodeNumber, (char * )&dirInode) != SUCCEEDED){
-        LGA_LOGGER_ERROR("Couldn't read new directory's inode");
-        return FAILED;
-      }else{
-        LGA_LOGGER_DEBUG("Changed the directory");
-        openDirectory = dirInode;
-        openDirectoryFileRecord = dir;
-        return SUCCEEDED;
-      }
+      LGA_LOGGER_DEBUG("[setNewOpenDirectory]Changed the directory");
+      openDirectory = dirInode;
+      openDirectoryFileRecord = dir;
+      return SUCCEEDED;
     }
+  }
+}
+
+DIR2 addDirToOpenDirs(Inode dir){
+  if(openDirHandler >= MAX_NUM_OF_OPEN_DIRECTORIES){
+    LGA_LOGGER_IMPORTANT("[addDirToOpenDirs]Directory won't be added to vector since it's full");
+    return FAILED;
+  }
+
+  DIR2 available_pos = findProperPositionOnOpenDirectories();
+  LGA_LOGGER_LOG("[addDirToOpenDirs]directory being added");
+
+  openDirectories[available_pos] = dir;
+
+  LGA_LOGGER_LOG("[addDirToOpenDirs]handler being increased");
+  openDirHandler++;
+
+  return available_pos;
+
+}
+
+int removeDirFromOpenDirs(DIR2 handler){
+  if(handler < MAX_NUM_OF_OPEN_DIRECTORIES && handler >= 0){
+    openDirectories[handler] = closedDir;
+
+    openFilesHandler--;
+    LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
+    return SUCCEEDED;
+
+  }else{
+    LGA_LOGGER_ERROR("There is no directory open with this handler");
+    return FAILED;
+  }
 }
 
 /* ################################ */
@@ -871,10 +910,21 @@ int findFileRecordOnDirectory(char * filename){
 }
 
 FILE2 findProperPositionOnOpenFiles(){
-  LGA_LOGGER_DEBUG("entered find proper position");
+  LGA_LOGGER_DEBUG("entered find proper open files position");
   int pos;
   for(pos = 0; pos <= openFilesHandler; pos++){
     if(openFiles[pos].CP == -1){
+      return pos;
+    }
+  }
+  return FAILED;
+}
+
+DIR2 findProperPositionOnOpenDirectories(){
+  LGA_LOGGER_DEBUG("entered find proper open dir position");
+  int pos;
+  for(pos = 0; pos <= openDirHandler; pos++){
+    if(openDirectories[pos].blocksFileSize == -1){
       return pos;
     }
   }
