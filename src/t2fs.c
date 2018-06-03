@@ -102,35 +102,40 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 -----------------------------------------------------------------------------*/
 int delete2 (char *filename){
     ///TODO
-
     LGA_LOGGER_DEBUG("[Entering delete2]");
     if(initializeSuperBlock() != 0){
   		LGA_LOGGER_ERROR("[delete2] SuperBlock not properly initiated");
   		return FAILED;
   	}
     LGA_LOGGER_DEBUG("[delete2] SuperBlock initialized");
-    FileRecord *fileInode = malloc(sizeof (FileRecord));
-    if (getFileInode(filename, openDirectory, fileInode) == NOT_FOUND) {
+    FileRecord record;
+    int recordPosition, accessedPtr;
+
+    //Procura pelo filename passado.
+    //Recupera junto seu record, a sua position e em qual ponteiro do openDirectory foi encontrado
+    if (getFileInode(filename, openDirectory, &record, &recordPosition, &accessedPtr) == NOT_FOUND) {
       return FAILED;
     }
 
-    fileInode->TypeVal = TYPEVAL_INVALIDO;
-    int inodeNumber = fileInode->inodeNumber;
-
-    if(setInode(inodeNumber, (char *)fileInode) != 0){
-  		//LGA_LOGGER_ERROR("[create2] Inode not saved properly");
+    //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
+    record.TypeVal = TYPEVAL_INVALIDO;
+    if(changeWriteBlock(openDirectory.dataPtr[accessedPtr], recordPosition*REGISTER_SIZE, (char*)&record, REGISTER_SIZE)!= SUCCEEDED){
+  		LGA_LOGGER_ERROR("[delete2] Record not saved properly on its block");
   		return FAILED;
   	}
-    setBitmap2(INODE_TYPE, inodeNumber, INODE_FREE);
-    //LGA_LOGGER_WARNING("(: YHUHUHUHUHUHUHUU");
 
+    //TODO aqui alguma especie de recursao para ir liberando também os inodes e possiveis indirecoes
+    //TODO que o arquivo estivesse apontando
     //Para os inodes de fato
     // inodes->blocksFileSize = 0;
     // inodes->bytesFileSize = 0;
     // inodes->dataPtr[0] = INVALID_PTR;
     // inodes->dataPtr[1] = INVALID_PTR;
-    free(fileInode);
-    return FAILED;
+
+    //Seta no bitmap como livre o inode que o record estava apontando
+    setBitmap2(INODE_TYPE, record.inodeNumber, INODE_FREE);
+
+    return SUCCEEDED;
 }
 
 

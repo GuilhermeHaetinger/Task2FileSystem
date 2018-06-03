@@ -432,9 +432,9 @@ DWORD getDirFilenameInode(char* filename, Inode inode);
 
 DWORD _getDirFilenameInode(DWORD ptr, char* filename);
 
-int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode);
+int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode, int *position);
 
-int getFileInode(char* filename, Inode inode, FileRecord * fileInode);
+int getFileInode(char* filename, Inode inode, FileRecord * fileInode, int *position, int *accessedPtr);
 
 /*
  * Entra em um diretório específico dentro do diretório atual

@@ -99,9 +99,9 @@ int initialiizeOpenFiles(){
 
 int createRecord(char * name, BYTE typeVal, FileRecord * file){
   LGA_LOGGER_DEBUG("[createRecord] Entering createRecord");
-  FileRecord *inodeAux =  malloc(sizeof (FileRecord));
-
-  if (getFileInode(name, openDirectory, inodeAux) != NOT_FOUND) {
+  FileRecord inodeAux;
+  int auxPosition, accessedPtr;
+  if (getFileInode(name, openDirectory, &inodeAux,&auxPosition, &accessedPtr) != NOT_FOUND) {
   LGA_LOGGER_WARNING("[createRecord] Already exist a file with that name");
   return FAILED;
  	}
@@ -113,8 +113,6 @@ int createRecord(char * name, BYTE typeVal, FileRecord * file){
 	file->TypeVal = typeVal;
   strncpy(file->name, name, 59);
 	file->inodeNumber = inodePos;
-
-  free(inodeAux);
   return SUCCEEDED;
 }
 
@@ -324,6 +322,8 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
     return FAILED;
   }
   if (position <= FIRST_ENTRY) {
+    //TODO
+    //Faz sentido passar position que foi multiplicada por REGISTERS_PER_BLOCK para o changeWriteBlock como dataPos?
     if (changeWriteBlock(inode.dataPtr[0], position * REGISTER_SIZE, fileRecord, REGISTER_SIZE) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[writeFilePositionInInode]");
       return FAILED;
@@ -615,7 +615,8 @@ int rootCreated() {
 
 int setNewOpenDirectory(char * directoryName){
     FileRecord dir;
-    if (getFileInode(directoryName, openDirectory, &dir) == NOT_FOUND) {
+    int auxPosition, accessedPtr;
+    if (getFileInode(directoryName, openDirectory, &dir, &auxPosition, &accessedPtr) == NOT_FOUND) {
       LGA_LOGGER_WARNING("Directory not found in this directory");
       return FAILED;
     }else{
@@ -743,15 +744,16 @@ int getDataFromDisk(char *buffer, int start, int dataSize, char* diskBuffer, int
   return SUCCEEDED;
 }
 
-int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
+int getFileInode(char* filename, Inode inode, FileRecord * fileInode, int *position, int *accessedPtr) {
 
   int searchResult;
   //Procura no dataPtr[0] do register pelo inode com nome do arquivo a pesquisar
   if (inode.dataPtr[0] != INVALID_PTR) {
-    searchResult = _getFileInode(inode.dataPtr[0], filename, fileInode);
+    searchResult = _getFileInode(inode.dataPtr[0], filename, fileInode, position);
    if ( searchResult != NOT_FOUND) {
      if (searchResult == FOUND) {
-         LGA_LOGGER_LOG("[getFileInode] Found the inode");
+        *accessedPtr = 0;
+        LGA_LOGGER_LOG("[getFileInode] Found the inode");
         return FOUND;
      }
      else{
@@ -763,10 +765,12 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
 
   //Procura no dataPtr[1] do register pelo inode com nome do arquivo a pesquisar
   if (inode.dataPtr[1] != INVALID_PTR) {
-    searchResult = _getFileInode(inode.dataPtr[1], filename, fileInode);
+    searchResult = _getFileInode(inode.dataPtr[1], filename, fileInode, position);
    if ( searchResult != NOT_FOUND) {
      if (searchResult == FOUND) {
         LGA_LOGGER_LOG("[getFileInode] Found the inode");
+        *accessedPtr = 1;
+        *position = *position + (REGISTERS_PER_BLOCK * 1);
         return FOUND;
      }
      else{
@@ -778,7 +782,7 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
   return NOT_FOUND;
 }
 
-int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode) {
+int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode,int *position) {
   char diskBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
 
   //Le o bloco apontado por ptr e coloca no buffer
@@ -793,16 +797,16 @@ int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode) {
       LGA_LOGGER_ERROR("[_getFileInode] couldnt get the register file");
       return FAILED;
     }
-    //TODO pq funcionava sem isso?
-    //Se o inode apontado é do tipo INVALID_PTR é porque acabaram os inodes validos do ptr passado
-    if(((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_INVALIDO)
+
+    //Pode ter sido deletada uma entrada do diretorio e setado para INVALIDO entao nao consideramos esse nome desse residuo lixo
+    if(((FileRecord*) registerBuffer)->TypeVal != TYPEVAL_INVALIDO)
     {
-      break;
-    }
-    //Se registro possuir o nome passado é porque é o arquivo procurado
-    if (strcmp(((FileRecord*) registerBuffer)->name, filename) == 0) {
-      *fileInode = *((FileRecord*) registerBuffer);
-      return FOUND;
+      //Se registro possuir o nome passado é porque é o arquivo procurado
+      if (strcmp(((FileRecord*) registerBuffer)->name, filename) == SUCCEEDED) {
+        *fileInode = *((FileRecord*) registerBuffer);
+        *position = i;
+        return FOUND;
+      }
     }
   }
   return NOT_FOUND;
@@ -855,8 +859,9 @@ DWORD _getDirFilenameInode(DWORD ptr, char* filename) {
 }
 
 int findFileRecordOnDirectory(char * filename){
-  FileRecord *file = malloc(sizeof (FileRecord));
-  if (getFileInode(filename, openDirectory, file) == NOT_FOUND) {
+  FileRecord file;
+  int auxPosition, accessedPtr;
+  if (getFileInode(filename, openDirectory, &file, &auxPosition, &accessedPtr) == NOT_FOUND) {
     LGA_LOGGER_WARNING("File not found in this directory");
     return FAILED;
   }else{
