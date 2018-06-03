@@ -48,6 +48,7 @@ FileRecord closedRecord;
 
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
 Inode openDirectory;
+FileRecord openDirectoryFileRecord;
 
 
 /*  funções   */
@@ -202,6 +203,17 @@ int createRecord(char * name, BYTE typeVal, FileRecord * fileRecord);
 int createRecordInode(FileRecord file);
 
 /*
+ * Criação de inode para um Diretório
+ * @params:
+ * file -> Record para o qual criaremos um inode
+ * fatherInodeNumber -> Numero do inode do pai desse diretório
+ * returns:
+ *  >= 0 -> caso crie propriamente
+ *  < 0  -> caso não
+*/
+int createDirectoryInode(FileRecord file, int fatherInodeNumber);
+
+/*
  * Busca a posição do primeiro inode free
  * returns:
  * int -> posição no bitmap
@@ -271,12 +283,13 @@ int rootCreated();
 /*
  * Pega o inode Root
  * * @params:
- * buffer -> Buffer para receber o iNode
+ * inodeBuffer -> Buffer para receber o iNode
+ * fileBuffer -> Buffer para receber o Record File
  * returns:
  * 0  -> caso tenha sido bem sucedido
  * -1 -> caso tenha falhado
 */
-int getRootInode(char* buffer);
+int getRootInodeFile(char* inodeBuffer, char* fileBuffer);
 
 /*
  * Concatena os dados de dois char*
@@ -413,12 +426,11 @@ int printAllEntries(Inode inode);
  * 0  ->  sucesso
  * -1  -> caso tenha falhado
 */
+int _printEntries(DWORD ptr);
 
 DWORD getDirFilenameInode(char* filename, Inode inode);
 
 DWORD _getDirFilenameInode(DWORD ptr, char* filename);
-
-int _printEntries(DWORD ptr);
 
 int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode);
 

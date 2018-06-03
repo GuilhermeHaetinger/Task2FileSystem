@@ -6,11 +6,10 @@
 #include "../include/LGA_logger.h"
 
 int main(){
-  create2("oioioioioi.txt");
-  //delete2("oioioioioi.txt");
-  // WORD inodePos Andy.txt = 13
-  // Inode fileInode Andy.txt = 0xffdd3ebc
-  // setor inode Andy.txt = 13
-  // offset setor inodePos Andy.txt = 13
-  printAllEntries(openDirectory);
+  if (create2("create2teste.txt") < 0) {
+    LGA_LOGGER_TEST("Create2 Failed");
+  } else {
+    LGA_LOGGER_TEST("Create2 SUCCEEDED and create2teste.txt should be printed");
+    printAllEntries(openDirectory);
+  }
 }

@@ -5,10 +5,10 @@ FRS_DAT=../fresh_dat
 TST_DIR=./
 BUILD_DIR=build
 
-resetDat:
+resetDatTest:
 	cp $(FRS_DAT)/t2fs_disk.dat ./
 
-create:
+create2Test:
 	rm -rf build
 	mkdir $(BUILD_DIR)
 	$(CC) -c $(SRC_DIR)/t2fs.c -o $(BIN_DIR)/t2fs.o
@@ -16,7 +16,7 @@ create:
 	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
 	$(CC) -o $(BUILD_DIR)/create2test.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o create2test.c  -lm -Wall
 
-open:
+openTest:
 	rm -rf build
 	mkdir $(BUILD_DIR)
 	$(CC) -c $(SRC_DIR)/t2fs.c -o $(BIN_DIR)/t2fs.o
@@ -24,7 +24,7 @@ open:
 	$(CC) -c $(SRC_DIR)/LGA_support.c -o $(BIN_DIR)/LGA_support.o
 	$(CC) -o $(BUILD_DIR)/open2test.exe $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(BIN_DIR)/LGA_logger.o $(BIN_DIR)/LGA_support.o $(BIN_DIR)/t2fs.o open2test.c  -lm -Wall
 
-support:
+supportTest:
 	rm -rf build
 	mkdir $(BUILD_DIR)
 	$(CC) -c $(SRC_DIR)/t2fs.c -o $(BIN_DIR)/t2fs.o

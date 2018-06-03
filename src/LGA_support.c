@@ -34,7 +34,7 @@ int initializeSuperBlock(){
       LGA_LOGGER_ERROR("[initializeSystem] superBlock not read properly");
       return FAILED;
     }
-    if(getRootInode((char *)&openDirectory) != SUCCEEDED){
+    if(getRootInodeFile((char *)&openDirectory, (char *)&openDirectoryFileRecord) != SUCCEEDED){
       LGA_LOGGER_ERROR("[initializeSystem] Root inode not retrieved correctly");
       return FAILED;
     }
@@ -125,6 +125,37 @@ int createRecordInode(FileRecord file){
 
 	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("[createRecordInode] Inode not saved properly");
+		return FAILED;
+	}
+  return SUCCEEDED;
+}
+
+int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
+  LGA_LOGGER_DEBUG("[createDirectoryInode] Entering CreatingRecordInode");
+  Inode fileInode;
+	initializeInode(&fileInode);
+
+  FileRecord dot, dotdot; /* . && .. */
+  dot.TypeVal = TYPEVAL_DIRETORIO;
+  strcpy(dot.name, ".");
+  dot.inodeNumber = file.inodeNumber;
+  dotdot.TypeVal = TYPEVAL_DIRETORIO;
+  strcpy(dotdot.name, "..");
+  dotdot.inodeNumber = fatherInodeNumber;
+
+  int sectorPos = searchBitmap2(BITMAP_DADOS, 0);
+
+  char registersData[REGISTER_SIZE * 2];
+  concatCustom(registersData, 0, (char*)&dot, REGISTER_SIZE);
+  concatCustom(registersData, REGISTER_SIZE, (char*)&dotdot, REGISTER_SIZE);
+  writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
+
+  fileInode.dataPtr[0] = sectorPos;
+
+  setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
+
+	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
+		LGA_LOGGER_ERROR("[createDirectoryInode] Inode not saved properly");
 		return FAILED;
 	}
   return SUCCEEDED;
@@ -410,7 +441,6 @@ void initializeInode(Inode * buffer){
 
 int saveInode(DWORD inodePos, char* data){
 
-
   //Testa que a posicao do inode estava livre no bitmap
   LGA_LOGGER_DEBUG("[saveInode] Setting iNode to busy on bitmap");
   if(getBitmap2(INODE_TYPE, inodePos) == INODE_BUSY){
@@ -418,11 +448,8 @@ int saveInode(DWORD inodePos, char* data){
     return FAILED;
   }
 
-  //Seta a posicao do inode para ocupado no bitmap
-  int result;
-
   //TODO talvez testar se consegue lockar direito inode
-  result = setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
   //Obtem o setor onde se encontra o inode
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
@@ -549,7 +576,7 @@ int createRoot() {
   return SUCCEEDED;
 }
 
-int getRootInode(char* buffer) {
+int getRootInodeFile(char* inodeBuffer, char* fileBuffer) {
 
   if (rootCreated() != SUCCEEDED) {
     if (createRoot() != SUCCEEDED) {
@@ -558,10 +585,16 @@ int getRootInode(char* buffer) {
     }
   }
 
-  if (getInode(ROOT_INODE, buffer) != SUCCEEDED) {
+  if (getInode(ROOT_INODE, inodeBuffer) != SUCCEEDED) {
     LGA_LOGGER_ERROR("[getRoot] Root iNode couldnt be read");
     return FAILED;
   }
+
+  FileRecord rootFileRecord;
+  rootFileRecord.TypeVal = TYPEVAL_DIRETORIO;
+  rootFileRecord.inodeNumber = ROOT_INODE;
+  strcpy(rootFileRecord.name, "root");
+  concatCustom(fileBuffer, 0, (char*) &rootFileRecord, REGISTER_SIZE);
 
   LGA_LOGGER_LOG("[getRoot] Get Root Successfully");
   return SUCCEEDED;
@@ -581,18 +614,19 @@ int rootCreated() {
 /* ################################ */
 
 int setNewOpenDirectory(char * directoryName){
-    FileRecord *dir = malloc(sizeof (FileRecord));
-    if (getFileInode(directoryName, openDirectory, dir) == NOT_FOUND) {
+    FileRecord dir;
+    if (getFileInode(directoryName, openDirectory, &dir) == NOT_FOUND) {
       LGA_LOGGER_WARNING("Directory not found in this directory");
       return FAILED;
     }else{
       Inode dirInode;
-      if(getInode(dir->inodeNumber, (char * )&dirInode) != SUCCEEDED){
+      if(getInode(dir.inodeNumber, (char * )&dirInode) != SUCCEEDED){
         LGA_LOGGER_ERROR("Couldn't read new directory's inode");
         return FAILED;
       }else{
         LGA_LOGGER_DEBUG("Changed the directory");
         openDirectory = dirInode;
+        openDirectoryFileRecord = dir;
         return SUCCEEDED;
       }
     }
@@ -666,9 +700,9 @@ int _printEntries(DWORD ptr) {
 
     if (strlen(((FileRecord*) registerBuffer)->name) > 0) {
       if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_REGULAR) {
-        printf("%s  ",((FileRecord*) registerBuffer)->name);
+        printf("%s %d  ",((FileRecord*) registerBuffer)->name, ((FileRecord*) registerBuffer)->inodeNumber);
       } else if (((FileRecord*) registerBuffer)->TypeVal == TYPEVAL_DIRETORIO) {
-        printf("%s/  ",((FileRecord*) registerBuffer)->name);
+        printf("%s %d  /  ",((FileRecord*) registerBuffer)->name, ((FileRecord*) registerBuffer)->inodeNumber);
       }
     }
   }
@@ -717,11 +751,11 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
     searchResult = _getFileInode(inode.dataPtr[0], filename, fileInode);
    if ( searchResult != NOT_FOUND) {
      if (searchResult == FOUND) {
-         LGA_LOGGER_WARNING("[getFileInode] this filename already exists in the current directory");
+         LGA_LOGGER_LOG("[getFileInode] Found the inode");
         return FOUND;
      }
      else{
-        LGA_LOGGER_WARNING("[getFileInode] couldnt verify the first entry");
+        LGA_LOGGER_WARNING("[getFileInode] Couldnt verify the first entry");
         return FAILED;
       }
     }
@@ -732,11 +766,11 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode) {
     searchResult = _getFileInode(inode.dataPtr[1], filename, fileInode);
    if ( searchResult != NOT_FOUND) {
      if (searchResult == FOUND) {
-         LGA_LOGGER_WARNING("[getFileInode] this filename already exists in the current directory");
+        LGA_LOGGER_LOG("[getFileInode] Found the inode");
         return FOUND;
      }
      else{
-        LGA_LOGGER_WARNING("[getFileInode] couldnt verify the second entry");
+        LGA_LOGGER_WARNING("[getFileInode] Couldnt verify the second entry");
         return FAILED;
       }
     }

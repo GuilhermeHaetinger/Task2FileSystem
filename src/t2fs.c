@@ -80,7 +80,7 @@ FILE2 create2 (char *filename){
 		return FAILED;
 	}
 	LGA_LOGGER_LOG("[create2] Inode created");
-	
+
   	if (addFileToOpenDirectory(file) != SUCCEEDED) {
   	  LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
   	  return FAILED;
@@ -288,18 +288,18 @@ int mkdir2 (char *pathname){
 	LGA_LOGGER_DEBUG("[mkdir2] FileRecord created");
 
 	LGA_LOGGER_LOG("[mkdir2] Creating inode");
-	if(createRecordInode(file) != SUCCEEDED){
+	if(createDirectoryInode(file, openDirectoryFileRecord.inodeNumber) != SUCCEEDED){
 		return FAILED;
 	}
 	LGA_LOGGER_LOG("[mkdir2] Inode created");
-	
-  	if (addFileToOpenDirectory(file) != SUCCEEDED) {
-  	  LGA_LOGGER_ERROR("[mkdir2] Failed to add file to directory");
-  	  return FAILED;
-  	}
-  	LGA_LOGGER_LOG("[mkdir2] Added file to directory");
 
-    return SUCCEEDED;
+	if (addFileToOpenDirectory(file) != SUCCEEDED) {
+	  LGA_LOGGER_ERROR("[mkdir2] Failed to add file to directory");
+	  return FAILED;
+	}
+	LGA_LOGGER_LOG("[mkdir2] Added file to directory");
+
+  return SUCCEEDED;
 }
 
 
