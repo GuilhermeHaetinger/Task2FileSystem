@@ -463,4 +463,10 @@ int initialiizeOpenFiles();
 */
 int parse (char * string, char ***lista);
 
+/*
+ * Recebe uma lista de strings e a quantidade de strings que ela possui e da free
+ * @params {List, words}
+ * String --> being string a char[]
+ * words -->  being words an integer
+*/
 void freeList(char ***lista, int words);
