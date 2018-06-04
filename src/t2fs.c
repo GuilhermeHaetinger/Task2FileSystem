@@ -350,10 +350,38 @@ int chdir2 (char *pathname){
 	///
 	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
 	///
-	LGA_LOGGER_DEBUG("Entering chdir2");
-	if(setNewOpenDirectory(pathname) != SUCCEEDED){
-		return FAILED;
-	}
+  Inode currentDirectory = openDirectory;
+  char **directoriesList; //Igual um argv
+  int i, startingDir = 0, directories = parse(pathname, &directoriesList);
+
+  //Caso o primeiro diretorio seja o / se seta para o openDirectory o rootDirectory
+  if (directoriesList[0][0] == '/')
+  {
+    //TODO
+    LGA_LOGGER_LOG("[chdir2] Comeca pelo raiz o  pathname");
+    if(getRootInodeFile((char *)&openDirectory, (char *)&openDirectoryFileRecord) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[initializeSystem] Root inode not retrieved correctly");
+      return FAILED;
+    }
+    //Nao precisa ler a primeira string parseada pois era / e já a atratamos
+    startingDir = 1;
+  }
+
+  //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
+  LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
+  for ( i = 0 + startingDir; i < directories; i++) {
+    LGA_LOGGER_DEBUG("Entering chdir2");
+    if(setNewOpenDirectory(directoriesList[i]) != SUCCEEDED){
+      openDirectory = currentDirectory;
+      freeList(&directoriesList,  directories);
+      return FAILED;
+    }
+  }
+
+
+  freeList(&directoriesList,  directories);
+  return SUCCEEDED;
+
 
     return SUCCEEDED;
 }

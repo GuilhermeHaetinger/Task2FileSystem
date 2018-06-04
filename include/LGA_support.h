@@ -461,7 +461,7 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode, int *posit
 
 /*
  * Entra em um diretório específico dentro do diretório atual
- * *@params:
+ * @params:
  * directoryName -> nome do diretório
  * returns:
  * 0  ->  sucesso
@@ -476,3 +476,22 @@ FILE2 findProperPositionOnOpenFiles();
 DIR2 findProperPositionOnOpenDirectories();
 
 int initialiizeOpenFiles();
+
+/*
+ * Receive one path string and fills a given ***char with each directory
+ * @params {String, List}
+ * String --> being string a char[]
+ * List -->  being list a char*** (a pointer to an argv)
+ * Returns:
+ * Number of strings filled in the list
+ * Access list as an array of strings ("%s", list[1])
+*/
+int parse (char * string, char ***lista);
+
+/*
+ * Recebe uma lista de strings e a quantidade de strings que ela possui e da free
+ * @params {List, words}
+ * String --> being string a char[]
+ * words -->  being words an integer
+*/
+void freeList(char ***lista, int words);
