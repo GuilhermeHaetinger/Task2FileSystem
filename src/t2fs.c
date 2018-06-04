@@ -345,10 +345,31 @@ int chdir2 (char *pathname){
 	///
 	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
 	///
-	LGA_LOGGER_DEBUG("Entering chdir2");
-	if(setNewOpenDirectory(pathname) != SUCCEEDED){
-		return FAILED;
-	}
+  Inode currentDirectory = openDirectory;
+  char **directorysList; //Igual um argv
+  int i, directorys = parse(pathname, &directorysList);
+
+  if (directorysList[0][0] == '/')
+  {
+    //TODO
+    LGA_LOGGER_LOG("[chdir2] Comeca pelo raiz o  pathname");
+  }
+  else
+  {
+    LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
+    for ( i = 0; i < directorys; i++) {
+      LGA_LOGGER_DEBUG("Entering chdir2");
+      if(setNewOpenDirectory(directorysList[i]) != SUCCEEDED){
+        openDirectory = currentDirectory;
+        freeList(&directorysList,  directorys);
+        return FAILED;
+      }
+    }
+  }
+
+  freeList(&directorysList,  directorys);
+  return SUCCEEDED;
+
 
     return SUCCEEDED;
 }

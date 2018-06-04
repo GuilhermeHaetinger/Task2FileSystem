@@ -883,38 +883,60 @@ FILE2 findProperPositionOnOpenFiles(){
 
 /// Receive one path string and fills a given ***char with each directory
 /// Arguments
-/// parse(@&list...)  being list a char**
-/// parse(...,string) being string a char[]
+/// parse(string,...) being string a char[]
+/// parse (...,list)  being list a char***
 /// Returns number of strings filled in the list
 /// Access list as an array of strings ("%s", list[1])
-int parse (char ***lista,char * string) {
+int parse (char * string, char ***lista) {
 
    const char token[2] = "/";
    char *tokenString;
    int words = 0, i = 0;
 
-    ///Count number of /
-   while(string[i] != '\0')
+
+   ///Count number of / and len
+   do
    {
-        if(string[i] == '/')
-        {
-            words++;
-        }
-        i++;
-   }
+      if(string[i] == '/')
+      {
+          words++;
+      }
+      i++;
+   }while(string[i] != '\0');
+
+   //Create a copy of the string for using with strtok
+   char str[i];
+   strcpy(str,string);
 
    ///If not empty path, then sum 1 for the last word if it hasn't /
    if(words > 0 && string[i-1]!= '/')
    {
         words++;
    }
+   //Caso não se tenha achado nenhuma barra mas tenham caracteres é pq é uma palavra apenas
+   else if (words == 0 && i > 0) {
+     words = 1;
+   }
 
    ///Allocate memory for the array of strings
    *lista = malloc(sizeof(char*) * words);
    i=0;
 
-    /// get the first token
-   tokenString = strtok(string, token);
+   //Se primeiro caractere é / é pq começa pelo raiz e strtok iria ignorar
+   if (str[0] == '/') {
+     (*lista)[0] = malloc(sizeof(char) * (strlen("/") + 1));
+     strcpy((*lista)[0],"/");
+     i++;
+   }
+   //Se primeiro caractere não é nem / nem . se adiciona manualmente o . para saber que parte do diretorio atual
+  /* else if (str[0] != '/') {
+     (*lista)[0] = malloc(sizeof(char) * (strlen(".") + 1));
+     strcpy((*lista)[0],".");
+     i++;
+   }*/
+
+    /// get the first substring
+   tokenString = strtok(str, token);
 
    /// walk through other tokens
    while( tokenString != NULL ) {
@@ -926,4 +948,16 @@ int parse (char ***lista,char * string) {
    }
 
     return words;
+}
+
+void freeList(char ***lista, int indexes)
+{
+  int i;
+  for ( i = 0; i < indexes; i++) {
+    free((*lista)[i]);
+  }
+  LGA_LOGGER_DEBUG("[freeList] Strings of the vector have been freed");
+  free(*lista);
+  LGA_LOGGER_DEBUG("[freeList] Vector of the list has been free'd");
+
 }
