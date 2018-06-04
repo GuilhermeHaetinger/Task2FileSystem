@@ -893,7 +893,6 @@ int parse (char * string, char ***lista) {
    char *tokenString;
    int words = 0, i = 0;
 
-
    ///Count number of / and len
    do
    {
@@ -928,12 +927,6 @@ int parse (char * string, char ***lista) {
      strcpy((*lista)[0],"/");
      i++;
    }
-   //Se primeiro caractere não é nem / nem . se adiciona manualmente o . para saber que parte do diretorio atual
-  /* else if (str[0] != '/') {
-     (*lista)[0] = malloc(sizeof(char) * (strlen(".") + 1));
-     strcpy((*lista)[0],".");
-     i++;
-   }*/
 
     /// get the first substring
    tokenString = strtok(str, token);
