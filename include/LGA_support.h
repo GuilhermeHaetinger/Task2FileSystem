@@ -41,6 +41,13 @@ typedef struct RecordHandlerStruct{
 
 } recordHandler;
 
+typedef struct DirectoryHandlerStruct{
+
+    int entry;
+    Inode dir;
+
+} directoryHandler;
+
 /*  dados   */
 SuperBlock superBlock;
 bool superBlockRead;
@@ -49,7 +56,7 @@ Inode closedDir;
 
 
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
-Inode openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
+directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
 FileRecord openDirectoryFileRecord;
 
@@ -450,6 +457,17 @@ int printAllEntries(Inode inode);
  * -1  -> caso tenha falhado
 */
 int _printEntries(DWORD ptr);
+
+/*
+ * Recupera arquivo de entry específica dentro do diretório
+ * *@params:
+ * entryNum -> índice do arquivo dentro do inode
+ * buffer   -> buffer de armazenamento do record
+ * returns:
+ * 0  ->  sucesso
+ * -1  -> caso tenha falhado
+*/
+int getSpecificEntry(Inode dir, int entryNum, char* buffer);
 
 DWORD getDirFilenameInode(char* filename, Inode inode);
 

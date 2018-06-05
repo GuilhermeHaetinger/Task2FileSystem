@@ -30,7 +30,7 @@ int DOUBLE_ENTRY           = 0;
 int initializeSuperBlock(){
   if(!superBlockRead){
     LGA_LOGGER_DEBUG("Superblock wasn't read yet");
-    initialiizeOpenFilesAndDirectories();
+    initializeOpenFilesAndDirectories();
     if(readSuperblock() != SUCCEEDED){
       LGA_LOGGER_ERROR("[initializeSystem] superBlock not read properly");
       return FAILED;
@@ -87,7 +87,7 @@ int readSuperblock() {
 /* --------- FILE_REGISTER_SECTION  ---------- */
 /* ################################ */
 
-int initialiizeOpenFilesAndDirectories(){
+int initializeOpenFilesAndDirectories(){
   closedRecord.TypeVal = TYPEVAL_INVALIDO;
   int i;
   recordHandler nullRecord;
@@ -98,8 +98,12 @@ int initialiizeOpenFilesAndDirectories(){
   }
   closedDir.blocksFileSize = -1;
   closedDir.bytesFileSize  = -1;
+  int closedEntry          = -1;
+  directoryHandler closedHandler;
+  closedHandler.dir = closedDir;
+  closedHandler.entry = closedEntry;
   for(i = 0; i<MAX_NUM_OF_OPEN_DIRECTORIES; i++){
-    openDirectories[i] = closedDir;
+    openDirectories[i] = closedHandler;
   }
   return SUCCEEDED;
 }
@@ -346,6 +350,36 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
   }
 }
 
+int getSpecificEntry(Inode dir, int entryNum, char* buffer){
+  int entriesPerBlock = superBlock.blockSize * REGISTERS_PER_SECTOR;
+  bool isEntryInPtr1  = entryNum < entriesPerBlock;
+  bool isEntryInPtr2  = entriesPerBlock <= entryNum && entryNum < 2*entriesPerBlock;  
+  char diskBuffer[BLOCK_SIZE_BYTES];
+
+  if(isEntryInPtr1){
+    if (readBlock(dir.dataPtr[0], diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[getSpecificEntry] couldnt read the Block from dataPtr 0");
+      return FAILED;
+    }
+
+  }else if(isEntryInPtr2){
+    if (readBlock(dir.dataPtr[1], diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[getSpecificEntry] couldnt read the Block from dataPtr 1");
+      return FAILED;
+    }
+    entryNum = entryNum - entriesPerBlock;
+  }
+
+  if (getRegisterFile(entryNum, diskBuffer, BLOCK_SIZE_BYTES, buffer) !=SUCCEEDED) {
+      LGA_LOGGER_ERROR("[getSpecificEntry] couldnt get the entry");
+      return FAILED;
+    }
+
+///TODO INDIREÇÃO!!!!!!!!!!!!!
+
+    return SUCCEEDED;
+}
+
 /* ################################ */
 /* --------- BLOCK_SECTION ---------- */
 /* ################################ */
@@ -415,7 +449,7 @@ int readBlock(int blockPos, char* data, int dataSize){
 
   for(i = 0; i < superBlock.blockSize; i++){
     if(read_sector(sectorPos + i, sectorBuffer) != SUCCEEDED){
-      LGA_LOGGER_ERROR("[readBlock] reading failed in writing loop");
+      LGA_LOGGER_ERROR("[readBlock] reading failed in reading loop");
       return FAILED;
     }
     for(j = 0; j < SECTOR_SIZE; j++){
@@ -515,7 +549,7 @@ int getInode(DWORD inodePos, char* data){
   char inodeSector[SECTOR_SIZE];
   LGA_LOGGER_LOG("reading inode sector");
   if(read_sector(inodeSectorPos, inodeSector) != 0){
-    LGA_LOGGER_ERROR("inode sector not read properly");
+    LGA_LOGGER_ERROR("[getInode]inode sector not read properly");
     return FAILED;
   }
   LGA_LOGGER_LOG("inode sector read properly");
@@ -649,7 +683,10 @@ DIR2 addDirToOpenDirs(Inode dir){
   DIR2 available_pos = findProperPositionOnOpenDirectories();
   LGA_LOGGER_LOG("[addDirToOpenDirs]directory being added");
 
-  openDirectories[available_pos] = dir;
+  directoryHandler handler;
+  handler.entry = 0;
+  handler.dir   = dir;
+  openDirectories[available_pos] = handler;
 
   LGA_LOGGER_LOG("[addDirToOpenDirs]handler being increased");
   openDirHandler++;
@@ -660,7 +697,10 @@ DIR2 addDirToOpenDirs(Inode dir){
 
 int removeDirFromOpenDirs(DIR2 handler){
   if(handler < MAX_NUM_OF_OPEN_DIRECTORIES && handler >= 0){
-    openDirectories[handler] = closedDir;
+    directoryHandler closedHandler;
+    closedHandler.dir = closedDir;
+    closedHandler.entry = -1;
+    openDirectories[handler] = closedHandler;
 
     openFilesHandler--;
     LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
@@ -924,7 +964,7 @@ DIR2 findProperPositionOnOpenDirectories(){
   LGA_LOGGER_DEBUG("entered find proper open dir position");
   int pos;
   for(pos = 0; pos <= openDirHandler; pos++){
-    if(openDirectories[pos].blocksFileSize == -1){
+    if(openDirectories[pos].entry == -1){
       return pos;
     }
   }

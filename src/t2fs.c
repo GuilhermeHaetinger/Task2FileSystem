@@ -156,22 +156,24 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna o han
 FILE2 open2 (char *filename){
 	LGA_LOGGER_DEBUG("Entering open2");
 	FileRecord file;
-	if(findFileRecordOnDirectory(filename) != SUCCEEDED){
-		LGA_LOGGER_ERROR("File not found in directory");
-		return FAILED;
-	}
 	Inode InodeBuffer;
 	int position, accessedPtr;
-	if(getFileInode(filename, InodeBuffer, &file, &position, &accessedPtr) != SUCCEEDED){
-		LGA_LOGGER_ERROR("File not retrieved correctly");
+
+	if (getFileInode(filename, openDirectory, &file, &position, &accessedPtr) == NOT_FOUND) {
+		LGA_LOGGER_WARNING("File not found in this directory");
 		return FAILED;
 	}
+	
+	LGA_LOGGER_DEBUG("[open2] File found");
+
 	LGA_LOGGER_LOG("[open2] Adding record to open file vector");
 	FILE2 fileHandler = addFileToOpenFiles(file);
 	if(fileHandler < SUCCEEDED){
 		LGA_LOGGER_ERROR("[open2] File record isn't openable");
 		return FAILED;
 	}
+
+	LGA_LOGGER_DEBUG("[open2] File opened properly");
     return SUCCEEDED;
 }
 
@@ -186,6 +188,7 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 int close2 (FILE2 handle){
     LGA_LOGGER_DEBUG("Entering close2");
 	if(removeFileFromOpenFiles(handle) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[close2] File couldn't be closed");
 		return FAILED;
 	}
 	LGA_LOGGER_DEBUG("File closed");
@@ -424,8 +427,33 @@ DIR2 opendir2 (char *pathname){
     ///
 	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
 	///
+	LGA_LOGGER_DEBUG("Entering opendir2");
+	FileRecord record;
+	Inode dir;
+	int position, accessedPtr, inodePos;
 
-    return FAILED;
+	if (getFileInode(pathname, openDirectory, &record, &position, &accessedPtr) == NOT_FOUND) {
+		LGA_LOGGER_WARNING("Directory not found in this directory");
+		return FAILED;
+	}
+	
+	LGA_LOGGER_DEBUG("[opendir2] Directory found");
+
+	inodePos = record.inodeNumber;
+	if(getInode(inodePos, (char*)&dir) != SUCCEEDED){
+		LGA_LOGGER_ERROR("Couldn't retrieve directories Inode properly");
+		return FAILED;
+	}
+
+	LGA_LOGGER_LOG("[opendir2] Adding record to open Directory vector");
+	DIR2 dirHandler = addDirToOpenDirs(dir);
+	if(dirHandler < SUCCEEDED){
+		LGA_LOGGER_ERROR("[opendir2] Directory record isn't openable");
+		return FAILED;
+	}
+
+	LGA_LOGGER_DEBUG("[opendir2] Directory opened properly");
+    return SUCCEEDED;
 }
 
 
@@ -445,8 +473,33 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 	Em caso de erro, ser� retornado um valor diferente de zero ( e "dentry" n�o ser� v�lido)
 -----------------------------------------------------------------------------*/
 int readdir2 (DIR2 handle, DIRENT2 *dentry){
-    ///TODO
-    return FAILED;
+	LGA_LOGGER_DEBUG("entering readdir2");
+    int num_of_entries = openDirectories[handle].dir.blocksFileSize * superBlock.blockSize / REGISTERS_PER_SECTOR;
+	if(openDirectories[handle].entry == num_of_entries - 1){
+		LGA_LOGGER_ERROR("[readdir2] Directory has run out of entries");
+		return FAILED;
+	}
+
+	FileRecord entryDetails;
+	Inode inodeDetails;
+
+	if(getSpecificEntry(openDirectories[handle].dir, openDirectories[handle].entry,(char*)&entryDetails) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[readdir2] Failed to read entry");
+		return FAILED;
+	}
+	
+	if(getInode(entryDetails.inodeNumber, (char*)&inodeDetails) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[readdir2] Failed to read entry's Inode");
+		return FAILED;
+	}
+
+	strcpy(dentry->name, entryDetails.name);
+	dentry->fileType = entryDetails.TypeVal;
+	dentry->fileSize = inodeDetails.bytesFileSize;
+
+	openDirectories[handle].entry++;
+
+	return SUCCEEDED;
 }
 
 
@@ -459,6 +512,12 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 	Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int closedir2 (DIR2 handle){
-    ///TODO
-    return FAILED;
+    LGA_LOGGER_DEBUG("Entering closedir2");
+	if(removeDirFromOpenDirs(handle) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[closedir2] Dir couldn't be closed");
+		return FAILED;
+	}
+	LGA_LOGGER_DEBUG("[closedir2]File closed");
+
+    return SUCCEEDED;
 }
