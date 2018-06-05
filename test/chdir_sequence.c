@@ -52,7 +52,7 @@ int main(){
 
     //Muda diretorio
     LGA_LOGGER_TEST("Changing directory");
-    if(chdir2("Directory4") != 0)
+    if(chdir2("Directory2") != 0)
     {
         LGA_LOGGER_TEST("chdir FAILED - Returning to previous openDirectory");
         printAllEntries(openDirectory);

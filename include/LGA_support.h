@@ -475,7 +475,9 @@ FILE2 findProperPositionOnOpenFiles();
 
 DIR2 findProperPositionOnOpenDirectories();
 
-int initialiizeOpenFiles();
+int initializeOpenFiles();
+
+int initializeOpenFilesAndDirectories();
 
 /*
  * Receive one path string and fills a given ***char with each directory

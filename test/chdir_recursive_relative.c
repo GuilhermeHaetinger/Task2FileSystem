@@ -10,6 +10,7 @@ int main(){
     char * pathname = "Directory1";
     char * pathname2 = "Directory2";
     char * filename = "Arquivo1";
+    char * filename2 = "Aeeee.txt";
 
     //Cria primeiro diretorio
     LGA_LOGGER_TEST("Creating Directory1 on root directory");
@@ -61,6 +62,15 @@ int main(){
     LGA_LOGGER_TEST("chdir SUCCEEDED");
     printAllEntries(openDirectory);
 
+    //Cria arquivo no diretorio 2
+    LGA_LOGGER_TEST("Creating file on Directory2");
+    if(create2(filename2) < 0){
+      LGA_LOGGER_TEST("creating FAILED");
+      return -1;
+    }
+    printAllEntries(openDirectory);
+    LGA_LOGGER_TEST("create2 SUCCEEDED");
+
     //Muda pro diretorio acima
     LGA_LOGGER_TEST("Changing to Directory1");
     if(chdir2("..") != 0)
@@ -84,8 +94,8 @@ int main(){
     printAllEntries(openDirectory);
 
     //Muda diretorio acima - é pra ser o raiz
-    LGA_LOGGER_TEST("Changing Directory2");
-    if(chdir2("Directory1/Directory2") != 0)
+    LGA_LOGGER_TEST("Changing ./Directory1/Directory2");
+    if(chdir2("./Directory1/Directory2") != 0)
     {
       LGA_LOGGER_TEST("chdir FAILED - Returning to previous openDirectory");
       printAllEntries(openDirectory);

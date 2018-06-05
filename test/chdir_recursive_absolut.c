@@ -72,9 +72,9 @@ int main(){
     printAllEntries(openDirectory);
     LGA_LOGGER_TEST("create2 SUCCEEDED");
 
-    //Muda pro diretorio acima
-    LGA_LOGGER_TEST("Changing to ./../../");
-    if(chdir2("./../..") != 0)
+    //Muda pro diretorio raiz
+    LGA_LOGGER_TEST("Changing to root /");
+    if(chdir2("/") != 0)
     {
       LGA_LOGGER_TEST("chdir FAILED - Returning to previous openDirectory");
       printAllEntries(openDirectory);
