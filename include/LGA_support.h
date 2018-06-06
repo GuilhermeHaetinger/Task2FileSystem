@@ -527,3 +527,10 @@ int singleIndPrint(DWORD singleIndPtr);
 
 int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
 
+/*
+ * Recebe uma lista de strings e a quantidade de strings que ela possui e da free
+ * @params {List, words}
+ * CP --> Contador de posicao
+ * fileInode -> arquivo em questao
+*/
+int invalidateFromCPOn(DWORD CP, Inode fileInode);

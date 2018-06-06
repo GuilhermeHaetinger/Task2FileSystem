@@ -248,10 +248,27 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 	Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int truncate2 (FILE2 handle){
+	LGA_LOGGER_DEBUG("Entering truncate2");
+	if(initializeSuperBlock() != 0){
+		LGA_LOGGER_ERROR("[truncate2] SuperBlock not properly initiated");
+		return FAILED;
+	}
 	if(openFiles[handle].CP == -1){
 		LGA_LOGGER_ERROR("[truncate2]There is nothing to remove from CP on");
 		return FAILED;
 	}
+	Inode fileInode;
+	if(getInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[truncate2] Not able to get file's inode");
+		return FAILED;
+	}
+	if(openFiles[handle].CP > fileInode.bytesFileSize){
+		LGA_LOGGER_ERROR("[truncate2] Can't truncate space off the file space");
+		return FAILED;
+	}
+	LGA_LOGGER_DEBUG("[truncate2] Invalidating bytes");
+	invalidateFromCPOn(openFiles[handle].CP, fileInode);
+
     return FAILED;
 }
 
@@ -273,6 +290,10 @@ int seek2 (FILE2 handle, DWORD offset){
 	Inode fileInode;
 	if(getInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[seek2] Not able to get file's inode");
+		return FAILED;
+	}
+	if(offset < -1){
+		LGA_LOGGER_ERROR("[seek2] Can't seek to a negative integer < -1");
 		return FAILED;
 	}
 	if(fileInode.bytesFileSize < offset){

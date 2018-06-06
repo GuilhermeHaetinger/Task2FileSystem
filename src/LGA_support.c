@@ -445,6 +445,48 @@ int getSpecificEntry(Inode dir, int entryNum, char* buffer){
     return SUCCEEDED;
 }
 
+int invalidateFromCPOn(DWORD CP, Inode fileInode){
+  float  CPLocation = CP / (superBlock.blockSize * SECTOR_SIZE);
+  //CP in 0
+  if(CPLocation == 0){
+    if(fileInode.dataPtr[0] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.dataPtr[0], 0);
+    fileInode.dataPtr[0] = INVALID_PTR;
+    if(fileInode.dataPtr[1] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.dataPtr[1], 0);
+    fileInode.dataPtr[1] = INVALID_PTR;
+    if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
+    fileInode.singleIndPtr = INVALID_PTR;
+    if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
+    fileInode.doubleIndPtr = INVALID_PTR;
+  }
+  //CP In dataPtr[0]
+  if(CPLocation <= 1){
+    fileInode.bytesFileSize = CP;
+    if(fileInode.dataPtr[1] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.dataPtr[1], 0);
+    fileInode.dataPtr[1] = INVALID_PTR;
+    if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
+    fileInode.singleIndPtr = INVALID_PTR;
+    if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
+    fileInode.doubleIndPtr = INVALID_PTR;   
+  }
+  //CP In dataPtr[1]
+  if(CPLocation <= 2){
+    fileInode.bytesFileSize = CP;
+    if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
+    fileInode.singleIndPtr = INVALID_PTR;
+    if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
+    fileInode.doubleIndPtr = INVALID_PTR;   
+  }
+  if(CPLocation <= 2 + superBlock.blockSize * SECTOR_SIZE){
+    fileInode.bytesFileSize = CP;
+    if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
+    fileInode.singleIndPtr = INVALID_PTR;
+  }
+  else{
+    fileInode.bytesFileSize = CP;
+  }
+  return SUCCEEDED;
+  //TODO INDIRECAO
+}
 /* ################################ */
 /* --------- BLOCK_SECTION ---------- */
 /* ################################ */
