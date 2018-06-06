@@ -18,12 +18,12 @@ int INODE_PER_SECTOR       = 0;
 int SECTORS_PER_BLOCK      = 0;
 int BLOCK_SIZE_BYTES       = 0;
 int REGISTERS_PER_BLOCK    = 0;
-int FIRST_REG            = 0;
-int SECOND_REG           = 0;
-int SINGLE_REG           = 0;
-int DOUBLE_REG           = 0;
-int SINGLE_PTR           = 0;
-int DOUBLE_PTR           = 0;
+int FIRST_REG              = 0;
+int SECOND_REG             = 0;
+int SINGLE_REG             = 0;
+int DOUBLE_REG             = 0;
+int SINGLE_PTR             = 0;
+int DOUBLE_PTR             = 0;
 
 /* ################################ */
 /* --------- SUPER_BLOCK_SECTION  ---------- */
@@ -99,7 +99,7 @@ int initializeOpenFilesAndDirectories(){
   closedRecord.TypeVal = TYPEVAL_INVALIDO;
   int i;
   recordHandler nullRecord;
-  nullRecord.CP = -1;
+  nullRecord.CP = 0;
   nullRecord.file = closedRecord;
   for(i = 0; i<MAX_NUM_OF_OPEN_FILES; i++){
     openFiles[i] = nullRecord;
@@ -113,6 +113,7 @@ int initializeOpenFilesAndDirectories(){
   for(i = 0; i<MAX_NUM_OF_OPEN_DIRECTORIES; i++){
     openDirectories[i] = closedHandler;
   }
+  openDirName = "root";
   return SUCCEEDED;
 }
 
@@ -216,7 +217,7 @@ FILE2 addFileToOpenFiles(FileRecord file){
 int removeFileFromOpenFiles(FILE2 handler){
   recordHandler nullHandler;
   if(handler < MAX_NUM_OF_OPEN_FILES && handler >= 0){
-    nullHandler.CP = -1;
+    nullHandler.CP = 0;
     nullHandler.file = closedRecord;
     openFiles[handler] = nullHandler;
 
@@ -732,6 +733,8 @@ int setNewOpenDirectory(char * directoryName){
       LGA_LOGGER_DEBUG("[setNewOpenDirectory]Changed the directory");
       openDirectory = dirInode;
       openDirectoryFileRecord = dir;
+      openDirName = malloc(strlen(directoryName));
+      strcpy(openDirName, directoryName);
       return SUCCEEDED;
     }
   }
@@ -1018,7 +1021,7 @@ FILE2 findProperPositionOnOpenFiles(){
   LGA_LOGGER_DEBUG("entered find proper open files position");
   int pos;
   for(pos = 0; pos <= openFilesHandler; pos++){
-    if(openFiles[pos].CP == -1){
+    if(openFiles[pos].file.TypeVal == TYPEVAL_INVALIDO){
       return pos;
     }
   }

@@ -211,7 +211,10 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna o nï¿
 	Em caso de erro, serï¿½ retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 int read2 (FILE2 handle, char *buffer, int size){
-    ///TODO
+    if(openFiles[handle].CP == -1){
+		LGA_LOGGER_ERROR("[read2]There is nothing to read from CP on");
+		return FAILED;
+	}
     return FAILED;
 }
 
@@ -245,7 +248,10 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna "0" (
 	Em caso de erro, serï¿½ retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int truncate2 (FILE2 handle){
-    ///TODO
+	if(openFiles[handle].CP == -1){
+		LGA_LOGGER_ERROR("[truncate2]There is nothing to remove from CP on");
+		return FAILED;
+	}
     return FAILED;
 }
 
@@ -264,8 +270,20 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna "0" (
 	Em caso de erro, serï¿½ retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int seek2 (FILE2 handle, DWORD offset){
-    ///TODO
-    return FAILED;
+	Inode fileInode;
+	if(getInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[seek2] Not able to get file's inode");
+		return FAILED;
+	}
+	if(fileInode.bytesFileSize < offset){
+		LGA_LOGGER_ERROR("[seek2] offset not in file");
+		return FAILED;
+	}
+
+	LGA_LOGGER_DEBUG("[seek2] File's CP succesfully replaced");
+	openFiles[handle].CP = offset;
+
+    return SUCCEEDED;
 }
 
 
@@ -405,8 +423,21 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna "0" (
 		Em caso de erro, serï¿½ retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int getcwd2 (char *pathname, int size){
-    ///TODO
-    return FAILED;
+	LGA_LOGGER_DEBUG("Entering getcw2");
+	if(initializeSuperBlock() != 0){
+		LGA_LOGGER_ERROR("[getcw2] SuperBlock not properly initiated");
+		return FAILED;
+	}
+
+    if(strlen(openDirName) > size){
+		LGA_LOGGER_ERROR("[getcwd2] nameBuffer is smaller than the actual name");
+		return FAILED;
+	}
+
+	LGA_LOGGER_DEBUG("[getcwd2] Name passed correctly");
+	strcpy(pathname, openDirName);
+
+    return SUCCEEDED;
 }
 
 

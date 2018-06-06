@@ -60,6 +60,7 @@ Inode closedDir;
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
 directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
+char* openDirName;
 FileRecord openDirectoryFileRecord;
 
 
@@ -525,3 +526,4 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
 int singleIndPrint(DWORD singleIndPtr);
 
 int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
+
