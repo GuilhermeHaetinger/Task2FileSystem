@@ -163,7 +163,7 @@ FILE2 open2 (char *filename){
 		LGA_LOGGER_WARNING("File not found in this directory");
 		return FAILED;
 	}
-	
+
 	LGA_LOGGER_DEBUG("[open2] File found");
 
 	LGA_LOGGER_LOG("[open2] Adding record to open file vector");
@@ -436,7 +436,7 @@ DIR2 opendir2 (char *pathname){
 		LGA_LOGGER_WARNING("Directory not found in this directory");
 		return FAILED;
 	}
-	
+
 	LGA_LOGGER_DEBUG("[opendir2] Directory found");
 
 	inodePos = record.inodeNumber;
@@ -487,7 +487,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
 		LGA_LOGGER_ERROR("[readdir2] Failed to read entry");
 		return FAILED;
 	}
-	
+
 	if(getInode(entryDetails.inodeNumber, (char*)&inodeDetails) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[readdir2] Failed to read entry's Inode");
 		return FAILED;

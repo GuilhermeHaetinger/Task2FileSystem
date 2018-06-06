@@ -27,6 +27,8 @@
 #define REGISTER_SIZE 64
 
 #define BLOCK_FULL -3
+#define BLOCK_BUSY 1
+
 
 
 /*  tipos   */
@@ -515,3 +517,11 @@ int parse (char * string, char ***lista);
  * words -->  being words an integer
 */
 void freeList(char ***lista, int words);
+
+int singleIndGetPos(DWORD *singleIndPtr, int *newBlock);
+
+int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
+
+int singleIndPrint(DWORD singleIndPtr);
+
+int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
