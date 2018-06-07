@@ -29,8 +29,6 @@
 #define BLOCK_FULL -3
 #define BLOCK_BUSY 1
 
-
-
 /*  tipos   */
 typedef struct t2fs_superbloco SuperBlock;
 typedef struct t2fs_record FileRecord;
@@ -524,4 +522,12 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
 
 int singleIndPrint(DWORD singleIndPtr);
 
+int doubleIndPrint(DWORD doubleIndPtr);
+
+int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock);
+
+int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord);
+
 int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
+
+void printBlock(DWORD blockPos);
