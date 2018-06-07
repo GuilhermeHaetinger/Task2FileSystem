@@ -491,7 +491,7 @@ int invalidateFromCPOn(DWORD CP, Inode fileInode){
     if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
     fileInode.singleIndPtr = INVALID_PTR;
     if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
-    fileInode.doubleIndPtr = INVALID_PTR;   
+    fileInode.doubleIndPtr = INVALID_PTR;
   }
   //CP In dataPtr[1]
   if(CPLocation < 2 * BLOCK_SIZE_BYTES){
@@ -499,7 +499,7 @@ int invalidateFromCPOn(DWORD CP, Inode fileInode){
     if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
     fileInode.singleIndPtr = INVALID_PTR;
     if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
-    fileInode.doubleIndPtr = INVALID_PTR;   
+    fileInode.doubleIndPtr = INVALID_PTR;
   }
   if(CPLocation < 2 * BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES)*(BLOCK_SIZE_BYTES)){
     fileInode.bytesFileSize = CP;
@@ -1179,111 +1179,6 @@ void freeList(char ***lista, int indexes)
 
 }
 
-int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
-  LGA_LOGGER_DEBUG("[singleIndGetPos] Verify if singleInd exists");
-
-  if (*singleIndPtr == INVALID_PTR) {
-    LGA_LOGGER_WARNING("[singleIndGetPos] Allocating singleInd");
-    *singleIndPtr = getFreeBlock();
-    setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
-    return SECOND_REG + 1;
-  }
-
-  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
-  int try = 0, newNewBlock = 0;
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
-
-  LGA_LOGGER_DEBUG("[singleIndGetPos] Reading Block");
-  if (readBlock(*singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt read");
-    return FAILED;
-  }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
-    LGA_LOGGER_DEBUG("[singleIndGetPos] Getting Data");
-    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt getData");
-      return FAILED;
-    }
-    LGA_LOGGER_DEBUG("[singleIndGetPos] Searching for position");
-    if(*((DWORD*)ptrBuffer) != 0 && *((DWORD*)ptrBuffer) != INVALID_PTR) {
-      LGA_LOGGER_LOG("[singleIndGetPos] ptrBuffer exists");
-      try = _searchNewFileRecordPosition(*((DWORD*)ptrBuffer), newBlock);
-      if (try >= 0) try = try + i * REGISTERS_PER_BLOCK;
-
-    } else {
-      LGA_LOGGER_LOG("[singleIndGetPos] Creating ptrBuffer");
-      newNewBlock = getFreeBlock();
-      setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
-      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
-      try = i * REGISTERS_PER_BLOCK;
-    }
-    if (try >= 0) return try + (SECOND_REG + 1);
-  }
-  return BLOCK_FULL;
-}
-
-int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
-
-  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
-  int ptrPosition = floor((position/REGISTERS_PER_BLOCK));
-  int normalizedPtrPosition = position - (ptrPosition * REGISTERS_PER_BLOCK);
-  int newBlock;
-
-  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt read");
-    return FAILED;
-  }
-
-  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt getData");
-    return FAILED;
-  }
-
-  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
-  if (*((DWORD*)ptrBuffer) == 0) {
-    newBlock = getFreeBlock();
-    setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
-    changeWriteBlock(singleIndPtr, ptrPosition, (char*)&newBlock, sizeof(DWORD));
-    strcpy(ptrBuffer,(char*)&newBlock);
-  }
-
-  // Escreve o registro dentro do bloco que está dentro do bloco do single.
-  if (changeWriteBlock(*((DWORD*)ptrBuffer), normalizedPtrPosition * REGISTER_SIZE, fileRecord, REGISTER_SIZE) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt changeWrite");
-    return FAILED;
-  }
-  LGA_LOGGER_LOG("[singleIndWrite] Sucess");
-  return SUCCEEDED;
-}
-
-int singleIndPrint(DWORD singleIndPtr) {
-  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
-  int try = 0, newNewBlock = 0;
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
-
-  if (singleIndPtr == INVALID_PTR) {
-    return SUCCEEDED;
-  }
-  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[singleIndPrint] Couldnt read");
-    return FAILED;
-  }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
-    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[singleIndPrint] Couldnt getData");
-      return FAILED;
-    }
-
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
-      _printEntries(*((DWORD*)ptrBuffer));
-    }
-  }
-  return SUCCEEDED;
-}
-
 
 int writeOnFile(Inode * fileInode, int CP, char * content, int contentSize){
 
@@ -1293,7 +1188,7 @@ int writeOnFile(Inode * fileInode, int CP, char * content, int contentSize){
   int writeBuf = contentSize;
   LGA_LOGGER_DEBUG("[writeOnFile] Started to write");
   while(writeBuf > 0){
-    
+
     if(getByteBlockPositioning(fileInode, CP, &block, &forwardoffset, &backwardsoffset, contentSize, contentSize - writeBuf) != SUCCEEDED){
       LGA_LOGGER_ERROR("[WriteOnFile] couldnt get block");
       return FAILED;
@@ -1319,7 +1214,7 @@ int writeOnFile(Inode * fileInode, int CP, char * content, int contentSize){
 
 int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forwardOffset, int * backwardsOffset, int contentSize, int contentWritten){
   float  byteLocation = byte / (BLOCK_SIZE_BYTES);
-  
+
   //byte in 0
   if(byte == 0){
 
@@ -1332,7 +1227,7 @@ int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forw
     *forwardOffset = BLOCK_SIZE_BYTES - byte - contentSize;
     if(*forwardOffset < 0) *forwardOffset = 0;
     *backwardsOffset = byte;
-    
+
     return SUCCEEDED;
   }
   //byte In dataPtr[0]
@@ -1351,7 +1246,7 @@ int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forw
     return SUCCEEDED;
   }
   //byte In dataPtr[1]
-  if(byte + contentWritten < 2 * BLOCK_SIZE_BYTES){   
+  if(byte + contentWritten < 2 * BLOCK_SIZE_BYTES){
 
     LGA_LOGGER_DEBUG("[getByteBlockPositioning] Writing on dataptr[1]");
     if(byte + contentSize - BLOCK_SIZE_BYTES > BLOCK_SIZE_BYTES && fileInode->singleIndPtr == INVALID_PTR){
@@ -1369,10 +1264,10 @@ int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forw
   LGA_LOGGER_ERROR("Didnt enter on one");
   return FAILED;
   /* TODO INDIRECAO
-  if(byteLocation < 2 + BLOCK_SIZE_BYTES){  
+  if(byteLocation < 2 + BLOCK_SIZE_BYTES){
   }
   else{
-    
+
   }*/
 }
 
@@ -1423,6 +1318,114 @@ int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize){
   return SUCCEEDED;
 }
 
+int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
+  LGA_LOGGER_DEBUG("[singleIndGetPos] Verify if singleInd exists");
+
+  if (*singleIndPtr == INVALID_PTR) {
+    LGA_LOGGER_WARNING("[singleIndGetPos] Allocating singleInd");
+    *singleIndPtr = getFreeBlock();
+    setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
+    openDirectory.blocksFileSize++;
+    return SECOND_REG + 1;
+  }
+
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0;
+  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
+
+  LGA_LOGGER_DEBUG("[singleIndGetPos] Reading Block");
+  if (readBlock(*singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    LGA_LOGGER_DEBUG("[singleIndGetPos] Getting Data");
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt getData");
+      return FAILED;
+    }
+    LGA_LOGGER_DEBUG("[singleIndGetPos] Searching for position");
+    if(*((DWORD*)ptrBuffer) != 0 && *((DWORD*)ptrBuffer) != INVALID_PTR) {
+      LGA_LOGGER_LOG("[singleIndGetPos] ptrBuffer exists");
+      try = _searchNewFileRecordPosition(*((DWORD*)ptrBuffer), newBlock);
+      if (try >= 0) try = try + i * REGISTERS_PER_BLOCK;
+
+    } else {
+      LGA_LOGGER_LOG("[singleIndGetPos] Creating ptrBuffer");
+      newNewBlock = getFreeBlock();
+      setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
+      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
+      openDirectory.blocksFileSize++;
+      try = i * REGISTERS_PER_BLOCK;
+    }
+    if (try >= 0) return try + (SECOND_REG + 1);
+  }
+  return BLOCK_FULL;
+}
+
+int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
+
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
+  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
+  int ptrPosition = floor((position/REGISTERS_PER_BLOCK));
+  int normalizedPtrPosition = position - (ptrPosition * REGISTERS_PER_BLOCK);
+  int newBlock;
+
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt read");
+    return FAILED;
+  }
+
+  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt getData");
+    return FAILED;
+  }
+
+  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
+  if (*((DWORD*)ptrBuffer) == 0) {
+    newBlock = getFreeBlock();
+    setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
+    changeWriteBlock(singleIndPtr, ptrPosition, (char*)&newBlock, sizeof(DWORD));
+    openDirectory.blocksFileSize++;
+    strcpy(ptrBuffer,(char*)&newBlock);
+  }
+
+  // Escreve o registro dentro do bloco que está dentro do bloco do single.
+  if (changeWriteBlock(*((DWORD*)ptrBuffer), normalizedPtrPosition * REGISTER_SIZE, fileRecord, REGISTER_SIZE) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[singleIndWrite] Couldnt changeWrite");
+    return FAILED;
+  }
+  LGA_LOGGER_LOG("[singleIndWrite] Sucess");
+  return SUCCEEDED;
+}
+
+int singleIndPrint(DWORD singleIndPtr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0;
+  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
+
+  if (singleIndPtr == INVALID_PTR) {
+    return SUCCEEDED;
+  }
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[singleIndPrint] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[singleIndPrint] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      _printEntries(*((DWORD*)ptrBuffer));
+    }
+  }
+  return SUCCEEDED;
+}
+
 int doubleIndPrint(DWORD doubleIndPtr) {
   char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
   int try = 0, newNewBlock = 0;
@@ -1456,6 +1459,7 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
     LGA_LOGGER_WARNING("[doubleIndGetPos] Allocating singleInd");
     *doubleIndPtr = getFreeBlock();
     setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
+    openDirectory.blocksFileSize++;
     return SINGLE_PTR + 1;
   }
 
@@ -1485,6 +1489,7 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
       newNewBlock = getFreeBlock();
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
       changeWriteBlock(*doubleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
+      openDirectory.blocksFileSize++;
       try = (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
     }
     if (try >= 0) return try + (SINGLE_PTR + 1);
@@ -1514,6 +1519,7 @@ int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord) {
     newBlock = getFreeBlock();
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(doubleIndPtr, ptrPosition * sizeof(DWORD), (char*)&newBlock, sizeof(DWORD));
+    openDirectory.blocksFileSize++;
     strcpy(ptrBuffer,(char*)&newBlock);
   }
 

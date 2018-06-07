@@ -517,12 +517,6 @@ int parse (char * string, char ***lista);
 */
 void freeList(char ***lista, int words);
 
-int singleIndGetPos(DWORD *singleIndPtr, int *newBlock);
-
-int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
-
-int singleIndPrint(DWORD singleIndPtr);
-
 int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
 
 /*
@@ -539,12 +533,80 @@ int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forw
 
 int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize);
 
+/*
+ * Recebe um ponteiro indireto (com endereco) e retorna uma posicao entre [SECOND_REG + 1, SINGLE_PTR]
+ * @params
+ * singleIndPtr --> Ponteiro indireto
+ * newBlock --> Debugador do Andy
+ * returns:
+ * >= 0  -> sucesso, posição
+ * -3   -> Bloco full
+ * -1  -> caso tenha falhado
+*/
+
+int singleIndGetPos(DWORD *singleIndPtr, int *newBlock);
+
+/*
+ * Escreve o registro no bloco correto
+ * @params
+ * singleIndPtr --> Ponteiro indireto
+ * position --> Posição do registro
+ * fileRecord --> registro a ser gravado
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
+
+/*
+ * Printa todas as entradas
+ * @params
+ * singleIndPtr --> Ponteiro indireto
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int singleIndPrint(DWORD singleIndPtr);
+
+/*
+ * Printa todas as entradas
+ * @params
+ * doubleIndPtr --> Ponteiro duplo indireto
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
 int doubleIndPrint(DWORD doubleIndPtr);
 
+/*
+ * Recebe um ponteiro indireto duplo (com endereco) e retorna uma posicao entre [SINGLE_PTR + 1, DOUBLE_PTR]
+ * @params
+ * doubleIndPtr --> Ponteiro duplo indireto
+ * newBlock --> Debugador do Andy
+ * returns:
+ * >= 0  -> sucesso, posição
+ * -3   -> Bloco full
+ * -1  -> caso tenha falhado
+*/
 int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock);
 
+/*
+ * Escreve o registro no bloco correto
+ * @params
+ * doubleIndPtr --> Ponteiro duplo indireto
+ * position --> Posição do registro
+ * fileRecord --> registro a ser gravado
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
 int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord);
 
 int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
 
+/*
+ * Printa os bytes de um bloco
+ * @params
+ * blockPos --> Posição do bloco
+*/
 void printBlock(DWORD blockPos);
