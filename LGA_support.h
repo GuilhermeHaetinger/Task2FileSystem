@@ -58,7 +58,6 @@ Inode closedDir;
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
 directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
-char* openDirName;
 FileRecord openDirectoryFileRecord;
 
 
@@ -522,22 +521,6 @@ int singleIndGetPos(DWORD *singleIndPtr, int *newBlock);
 int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord);
 
 int singleIndPrint(DWORD singleIndPtr);
-
-int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
-
-/*
- * Recebe uma lista de strings e a quantidade de strings que ela possui e da free
- * @params {List, words}
- * CP --> Contador de posicao
- * fileInode -> arquivo em questao
-*/
-int invalidateFromCPOn(DWORD CP, Inode fileInode);
-
-int writeOnFile(Inode *fileInode, int CP, char * content, int contentSize);
-
-int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forwardOffset, int * backwardsOffset, int contentSize, int contentWritten);
-
-int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize);
 
 int doubleIndPrint(DWORD doubleIndPtr);
 

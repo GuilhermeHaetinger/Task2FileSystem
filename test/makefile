@@ -7,6 +7,8 @@ BUILD_DIR=build
 
 resetDatTest:
 	cp $(FRS_DAT)/t2fs_disk.dat ./
+fullDatTest:
+	cp $(FRS_DAT)/t2fs_disk_sing_full.dat ./t2fs_disk.dat
 
 create2Test:
 	rm -rf build
