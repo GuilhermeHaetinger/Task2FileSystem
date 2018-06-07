@@ -534,3 +534,9 @@ int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
  * fileInode -> arquivo em questao
 */
 int invalidateFromCPOn(DWORD CP, Inode fileInode);
+
+int writeOnFile(Inode *fileInode, int CP, char * content, int contentSize);
+
+int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forwardOffset, int * backwardsOffset, int contentSize, int contentWritten);
+
+int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize);

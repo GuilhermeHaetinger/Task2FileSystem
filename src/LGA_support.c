@@ -129,6 +129,10 @@ int createRecord(char * name, BYTE typeVal, FileRecord * file){
 	LGA_LOGGER_LOG("[createRecord] Searching for inode position");
 
 	DWORD inodePos = getFreeInode();
+  if(inodePos < 0){
+    LGA_LOGGER_ERROR("[createRecord] exceeded the maximum amount of inodes blocked");
+    return FAILED;
+  }
 
 	file->TypeVal = typeVal;
   strncpy(file->name, name, 59);
@@ -446,8 +450,8 @@ int getSpecificEntry(Inode dir, int entryNum, char* buffer){
 }
 
 int invalidateFromCPOn(DWORD CP, Inode fileInode){
-  float  CPLocation = CP / (superBlock.blockSize * SECTOR_SIZE);
-  //CP in 0
+  float  CPLocation = CP / (BLOCK_SIZE_BYTES);
+  //CP in 0 if(byte + contentWritten < 2 * BLOCK_SIZE_BYTES)
   if(CPLocation == 0){
     if(fileInode.dataPtr[0] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.dataPtr[0], 0);
     fileInode.dataPtr[0] = INVALID_PTR;
@@ -459,7 +463,7 @@ int invalidateFromCPOn(DWORD CP, Inode fileInode){
     fileInode.doubleIndPtr = INVALID_PTR;
   }
   //CP In dataPtr[0]
-  if(CPLocation <= 1){
+  if(CPLocation < BLOCK_SIZE_BYTES){
     fileInode.bytesFileSize = CP;
     if(fileInode.dataPtr[1] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.dataPtr[1], 0);
     fileInode.dataPtr[1] = INVALID_PTR;
@@ -469,14 +473,14 @@ int invalidateFromCPOn(DWORD CP, Inode fileInode){
     fileInode.doubleIndPtr = INVALID_PTR;   
   }
   //CP In dataPtr[1]
-  if(CPLocation <= 2){
+  if(CPLocation < 2 * BLOCK_SIZE_BYTES){
     fileInode.bytesFileSize = CP;
     if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
     fileInode.singleIndPtr = INVALID_PTR;
     if(fileInode.doubleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.doubleIndPtr, 0);
     fileInode.doubleIndPtr = INVALID_PTR;   
   }
-  if(CPLocation <= 2 + superBlock.blockSize * SECTOR_SIZE){
+  if(CPLocation < 2 * BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES)*(BLOCK_SIZE_BYTES)){
     fileInode.bytesFileSize = CP;
     if(fileInode.singleIndPtr != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode.singleIndPtr, 0);
     fileInode.singleIndPtr = INVALID_PTR;
@@ -485,7 +489,6 @@ int invalidateFromCPOn(DWORD CP, Inode fileInode){
     fileInode.bytesFileSize = CP;
   }
   return SUCCEEDED;
-  //TODO INDIRECAO
 }
 /* ################################ */
 /* --------- BLOCK_SECTION ---------- */
@@ -542,7 +545,7 @@ int readBlock(int blockPos, char* data, int dataSize){
 
   int sectorPos = blockPos * SECTORS_PER_BLOCK;
 
-  if (dataSize != SECTORS_PER_BLOCK * SECTOR_SIZE) {
+  if (dataSize != BLOCK_SIZE_BYTES) {
     LGA_LOGGER_ERROR("[readBlock] Data size is different from Block size");
     return FAILED;
   }
@@ -1253,6 +1256,145 @@ int singleIndPrint(DWORD singleIndPtr) {
 
     if(*((DWORD*)ptrBuffer) != 0) {
       _printEntries(*((DWORD*)ptrBuffer));
+    }
+  }
+  return SUCCEEDED;
+}
+
+
+int writeOnFile(Inode * fileInode, int CP, char * content, int contentSize){
+
+  int block, forwardoffset, backwardsoffset;
+  char blockBuffer[BLOCK_SIZE_BYTES];
+  int byte = CP, i;
+  int writeBuf = contentSize;
+  LGA_LOGGER_DEBUG("[writeOnFile] Started to write");
+  while(writeBuf > 0){
+    
+    if(getByteBlockPositioning(fileInode, CP, &block, &forwardoffset, &backwardsoffset, contentSize, contentSize - writeBuf) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[WriteOnFile] couldnt get block");
+      return FAILED;
+    }
+    if(readBlock(block, blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[WriteOnFile] couldnt read block");
+      return FAILED;
+    }
+    for(i = 0; i < BLOCK_SIZE_BYTES; i++){
+      if(i >= backwardsoffset && i < BLOCK_SIZE_BYTES - forwardoffset){
+        blockBuffer[i] = content[byte - CP];
+        byte++;
+      }
+    }
+    if(writeBlock(block, blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[WriteOnFile] couldnt write block");
+      return FAILED;
+    }
+    writeBuf -= -backwardsoffset + BLOCK_SIZE_BYTES - forwardoffset;
+  }
+  return SUCCEEDED;
+}
+
+int getByteBlockPositioning(Inode * fileInode, int byte, int * block, int * forwardOffset, int * backwardsOffset, int contentSize, int contentWritten){
+  float  byteLocation = byte / (BLOCK_SIZE_BYTES);
+  
+  //byte in 0
+  if(byte == 0){
+
+    LGA_LOGGER_DEBUG("[getByteBlockPositioning] Writing on a new dataptr[0]");
+    if(fileInode->dataPtr[0] == INVALID_PTR && contentSize > 0){
+      fileInode->dataPtr[0] = getFreeBlock();
+      LGA_LOGGER_DEBUG("[getByteBlockPositioning] Created dataPtr[0]");
+    }
+    *block = fileInode->dataPtr[0];
+    *forwardOffset = BLOCK_SIZE_BYTES - byte - contentSize;
+    if(*forwardOffset < 0) *forwardOffset = 0;
+    *backwardsOffset = byte;
+    
+    return SUCCEEDED;
+  }
+  //byte In dataPtr[0]
+  if(byte + contentWritten < BLOCK_SIZE_BYTES){
+
+    LGA_LOGGER_DEBUG("[getByteBlockPositioning] Writing on dataptr[0]");
+    if(byte + contentSize > BLOCK_SIZE_BYTES && fileInode->dataPtr[1] == INVALID_PTR){
+      fileInode->dataPtr[1] = getFreeBlock();
+      LGA_LOGGER_DEBUG("[getByteBlockPositioning] Created dataPtr[1]");
+    }
+    *block = fileInode->dataPtr[0];
+    *forwardOffset = BLOCK_SIZE_BYTES - byte - contentSize - contentWritten;
+    if(*forwardOffset < 0) *forwardOffset = 0;
+    *backwardsOffset = byte;
+
+    return SUCCEEDED;
+  }
+  //byte In dataPtr[1]
+  if(byte + contentWritten < 2 * BLOCK_SIZE_BYTES){   
+
+    LGA_LOGGER_DEBUG("[getByteBlockPositioning] Writing on dataptr[1]");
+    if(byte + contentSize - BLOCK_SIZE_BYTES > BLOCK_SIZE_BYTES && fileInode->singleIndPtr == INVALID_PTR){
+      fileInode->singleIndPtr = getFreeBlock();
+
+      LGA_LOGGER_DEBUG("[getByteBlockPositioning] Created singleIndPtr");
+    }
+    *block = fileInode->dataPtr[1];
+    *forwardOffset = BLOCK_SIZE_BYTES - byte - contentSize - contentWritten - BLOCK_SIZE_BYTES;
+    if(*forwardOffset < 0) *forwardOffset = 0;
+    *backwardsOffset = 0;
+
+    return SUCCEEDED;
+  }
+  LGA_LOGGER_ERROR("Didnt enter on one");
+  return FAILED;
+  /* TODO INDIRECAO
+  if(byteLocation < 2 + BLOCK_SIZE_BYTES){  
+  }
+  else{
+    
+  }*/
+}
+
+int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize){
+  LGA_LOGGER_DEBUG("Entering readFileBlocks");
+  int byte;
+  DWORD ptr = fileInode.dataPtr[0];
+  char block[BLOCK_SIZE_BYTES];
+  if(readBlock(ptr, block, BLOCK_SIZE_BYTES) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[readFileBlocks] Couldnt read ptr 0");
+  }
+  for(byte = CP; byte < contentSize + CP; byte++){
+    if(byte < BLOCK_SIZE_BYTES){
+      LGA_LOGGER_DEBUG("[readFileBlocks] Reading on dataptr[0]");
+      buffer[byte - CP] = block[byte];
+    }
+    if(byte >= BLOCK_SIZE_BYTES){
+      LGA_LOGGER_DEBUG("[readFileBlocks] Reading on dataptr[1]");
+      if(ptr != fileInode.dataPtr[1]){
+        ptr = fileInode.dataPtr[1];
+      }
+      if(readBlock(ptr, block, BLOCK_SIZE_BYTES) != SUCCEEDED){
+        LGA_LOGGER_ERROR("[readFileBlocks] Couldnt read ptr 1");
+      }
+      buffer[byte - CP] = block[byte - BLOCK_SIZE_BYTES];
+    }
+    if(byte >= 2 * BLOCK_SIZE_BYTES){
+      LGA_LOGGER_DEBUG("[readFileBlocks] Reading on singular indirection");
+      if(ptr != fileInode.singleIndPtr){
+      ptr = fileInode.singleIndPtr;
+    }
+    /*  if(readBlock(ptr, block, BLOCK_SIZE_BYTES) != SUCCEEDED){
+        LGA_LOGGER_ERROR("[readFileBlocks] Couldnt read ptr 1");
+      }*/
+      return FAILED;
+    }
+    if(byte >= 2 * BLOCK_SIZE_BYTES + BLOCK_SIZE_BYTES * BLOCK_SIZE_BYTES){
+      LGA_LOGGER_DEBUG("[readFileBlocks] Reading on double indirection");
+      if(ptr != fileInode.doubleIndPtr){
+        ptr = fileInode.doubleIndPtr;
+      }
+   /*   if(readBlock(ptr, block, BLOCK_SIZE_BYTES) != SUCCEEDED){
+        LGA_LOGGER_ERROR("[readFileBlocks] Couldnt read ptr 1");
+      }*/
+      return FAILED;
     }
   }
   return SUCCEEDED;

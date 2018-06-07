@@ -64,6 +64,7 @@ FILE2 create2 (char *filename){
 	FileRecord file;
 	LGA_LOGGER_DEBUG("[create2] Creating FileRecord");
 	if(createRecord(filename, TYPEVAL_REGULAR, &file) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[create2] Couldnt create file");
 		return FAILED;
 	}
 	LGA_LOGGER_DEBUG("[create2] FileRecord created");
@@ -231,8 +232,30 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna o nï¿
 	Em caso de erro, serï¿½ retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 int write2 (FILE2 handle, char *buffer, int size){
-    ///TODO
-    return FAILED;
+    LGA_LOGGER_DEBUG("Entering write2");
+	int CP = openFiles[handle].CP;
+	if(initializeSuperBlock() != 0){
+		LGA_LOGGER_ERROR("[write2] SuperBlock not properly initiated");
+		return FAILED;
+	}
+	Inode fileInode;
+	if(getInode(openFiles[handle].file.inodeNumber, (char *)&fileInode) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[write2] Inode not retrieved correctly");
+		return FAILED;
+	}
+	if(CP == -1){
+		LGA_LOGGER_DEBUG("[write2] CP set to maximum byte");
+		CP = fileInode.bytesFileSize;
+	}
+	if(writeOnFile(&fileInode, openFiles[handle].CP, buffer, size) != SUCCEEDED){
+		LGA_LOGGER_ERROR("[write2] Couldnt write on file");
+		return FAILED;
+	}
+
+	openFiles[handle].CP += size;
+	fileInode.bytesFileSize += size;
+	
+    return SUCCEEDED;
 }
 
 
@@ -269,7 +292,9 @@ int truncate2 (FILE2 handle){
 	LGA_LOGGER_DEBUG("[truncate2] Invalidating bytes");
 	invalidateFromCPOn(openFiles[handle].CP, fileInode);
 
-    return FAILED;
+	fileInode.bytesFileSize -= openFiles[handle].CP; 
+
+    return SUCCEEDED;
 }
 
 
