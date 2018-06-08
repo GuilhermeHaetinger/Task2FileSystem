@@ -655,3 +655,11 @@ int _removeInode_SingleInd(DWORD singleIndPtr);
  * -1  -> caso tenha falhado
 */
 int _removeInode_DoubleInd(DWORD doubleIndPtr);
+
+int removeFileRecord(DWORD inodePos, char* name);
+
+int removeFileRecord_Simple(DWORD ptr, char* name);
+
+int _removeFileRecord_SingleInd(DWORD singleIndPtr, char* name);
+
+int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name);

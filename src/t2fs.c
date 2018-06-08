@@ -123,7 +123,7 @@ int delete2 (char *filename){
     //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
     record.TypeVal = TYPEVAL_INVALIDO;
 
-    if(changeWriteBlock(openDirectory.dataPtr[accessedPtr], recordPosition*REGISTER_SIZE, (char*)&record, REGISTER_SIZE)!= SUCCEEDED){
+    if(removeFileRecord(openDirectoryFileRecord.inodeNumber, filename) != SUCCEEDED){
   		LGA_LOGGER_ERROR("[delete2] Record not saved properly on its block");
   		return FAILED;
   	}

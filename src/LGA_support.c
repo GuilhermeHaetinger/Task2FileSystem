@@ -1789,3 +1789,150 @@ int _removeInode_DoubleInd(DWORD doubleIndPtr) {
   }
   return SUCCEEDED;
 }
+
+int removeFileRecord(DWORD inodePos, char* name) {
+  char inode[INODE_SIZE];
+  int searchResult;
+  getInode(inodePos, inode);
+
+  if(((Inode*)inode)->dataPtr[0] != INVALID_PTR) {
+    searchResult = removeFileRecord_Simple(((Inode*)&inode)->dataPtr[0], name);
+    if (searchResult != NOT_FOUND) {
+      if (searchResult == FOUND) {
+        return SUCCEEDED;
+      } else {
+        LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the first entry");
+        return FAILED;
+      }
+    }
+  }
+  if(((Inode*)inode)->dataPtr[1] != INVALID_PTR) {
+    searchResult = removeFileRecord_Simple(((Inode*)inode)->dataPtr[1], name);
+    if (searchResult != NOT_FOUND) {
+      if (searchResult == FOUND) {
+        return SUCCEEDED;
+      } else {
+        LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the second entry");
+        return FAILED;
+      }
+    }
+  }
+
+  if(((Inode*)inode)->singleIndPtr != INVALID_PTR) {
+    searchResult = _removeFileRecord_SingleInd(((Inode*)inode)->singleIndPtr, name);
+    if (searchResult != NOT_FOUND) {
+      if (searchResult == FOUND) {
+        return SUCCEEDED;
+      } else {
+        LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the singleIndPtr entry");
+        return FAILED;
+      }
+    }
+  }
+
+  if(((Inode*)inode)->doubleIndPtr != INVALID_PTR) {
+    searchResult = _removeFileRecord_DoubleInd(((Inode*)inode)->doubleIndPtr, name);
+    if (searchResult != NOT_FOUND) {
+      if (searchResult == FOUND) {
+        return SUCCEEDED;
+      } else {
+        LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the doubleIndPtr entry");
+        return FAILED;
+      }
+    }
+  }
+  return NOT_FOUND;
+}
+
+int removeFileRecord_Simple(DWORD ptr, char* name) {
+  char diskBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
+
+  //Le o bloco apontado por ptr e coloca no buffer
+  if (readBlock(ptr, diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt read the entry");
+    return FAILED;
+  }
+
+  //Le de registro em registro dentro do buffer
+  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+    if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt get the register file");
+      return FAILED;
+    }
+
+    //Pode ter sido deletada uma entrada do diretorio e setado para INVALIDO entao nao consideramos esse nome desse residuo lixo
+    if(((FileRecord*) registerBuffer)->TypeVal != TYPEVAL_INVALIDO)
+    {
+      //Se registro possuir o nome passado é porque é o arquivo procurado
+      if (strcmp(((FileRecord*) registerBuffer)->name, name) == SUCCEEDED) {
+        ((FileRecord*) registerBuffer)->TypeVal = TYPEVAL_INVALIDO;
+        if(changeWriteBlock(ptr, i * REGISTER_SIZE, registerBuffer, REGISTER_SIZE)!= SUCCEEDED){
+      		LGA_LOGGER_ERROR("[removeFileRecord_Simple] Couldnt changeWriteBlock");
+      		return FAILED;
+      	}
+        return FOUND;
+      }
+    }
+  }
+  return NOT_FOUND;
+}
+
+int _removeFileRecord_SingleInd(DWORD singleIndPtr, char* name) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0, searchResult;
+
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      searchResult = removeFileRecord_Simple(*((DWORD*)ptrBuffer), name);
+      if (searchResult != NOT_FOUND) {
+        if (searchResult == FOUND) {
+          return FOUND;
+        } else {
+          LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the doubleIndPtr entry");
+          return FAILED;
+        }
+      }
+    }
+  }
+  return NOT_FOUND;
+}
+
+int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0, searchResult;
+
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      searchResult = _removeFileRecord_SingleInd(*((DWORD*)ptrBuffer), name);
+      if (searchResult != NOT_FOUND) {
+        if (searchResult == FOUND) {
+          return FOUND;
+        } else {
+          LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the doubleIndPtr entry");
+          return FAILED;
+        }
+      }
+    }
+  }
+  return NOT_FOUND;
+}
