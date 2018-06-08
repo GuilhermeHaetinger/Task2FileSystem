@@ -254,8 +254,8 @@ int write2 (FILE2 handle, char *buffer, int size){
 
 	openFiles[handle].CP += size;
 	fileInode.bytesFileSize += size;
-	
-    return SUCCEEDED;
+
+  return SUCCEEDED;
 }
 
 
@@ -292,9 +292,9 @@ int truncate2 (FILE2 handle){
 	LGA_LOGGER_DEBUG("[truncate2] Invalidating bytes");
 	invalidateFromCPOn(openFiles[handle].CP, fileInode);
 
-	fileInode.bytesFileSize -= openFiles[handle].CP; 
+	fileInode.bytesFileSize -= openFiles[handle].CP;
 
-    return SUCCEEDED;
+  return SUCCEEDED;
 }
 
 
@@ -325,11 +325,14 @@ int seek2 (FILE2 handle, DWORD offset){
 		LGA_LOGGER_ERROR("[seek2] offset not in file");
 		return FAILED;
 	}
-
+  if (offset == -1) {
+    openFiles[handle].CP = fileInode.bytesFileSize; // TODO tem +1 aqui?
+  } else {
+    openFiles[handle].CP = offset;
+  }
 	LGA_LOGGER_DEBUG("[seek2] File's CP succesfully replaced");
-	openFiles[handle].CP = offset;
 
-    return SUCCEEDED;
+  return SUCCEEDED;
 }
 
 
@@ -445,12 +448,8 @@ int chdir2 (char *pathname){
     }
   }
 
-
   freeList(&directoriesList,  directories);
   return SUCCEEDED;
-
-
-    return SUCCEEDED;
 }
 
 
@@ -483,7 +482,7 @@ int getcwd2 (char *pathname, int size){
 	LGA_LOGGER_DEBUG("[getcwd2] Name passed correctly");
 	strcpy(pathname, openDirName);
 
-    return SUCCEEDED;
+  return SUCCEEDED;
 }
 
 
@@ -530,7 +529,7 @@ DIR2 opendir2 (char *pathname){
 	}
 
 	LGA_LOGGER_DEBUG("[opendir2] Directory opened properly");
-    return SUCCEEDED;
+  return SUCCEEDED;
 }
 
 
@@ -596,5 +595,5 @@ int closedir2 (DIR2 handle){
 	}
 	LGA_LOGGER_DEBUG("[closedir2]File closed");
 
-    return SUCCEEDED;
+  return SUCCEEDED;
 }

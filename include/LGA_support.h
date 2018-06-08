@@ -620,3 +620,7 @@ void printBlock(DWORD blockPos);
  * -1  -> caso tenha falhado
 */
 int cleanBlock(DWORD blockPos);
+
+int _getFileInodeSingInd(DWORD singleIndPtr, char* filename, FileRecord * fileInode,int *position);
+
+int _getFileInodeDoubleInd(DWORD doubleIndPtr, char* filename, FileRecord * fileInode,int *position);

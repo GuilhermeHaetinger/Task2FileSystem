@@ -11,10 +11,11 @@ int main(){
   for (int i = 0; i < 15000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = create2(buffer);
+
     if (handler < 0) {
       LGA_LOGGER_ERROR("Create2 Failed");
       printAllEntries(openDirectory);
-      //return 1;
+      return 1;
     } else {
       close2(handler);
       LGA_LOGGER_TEST("Create2 SUCCEEDED and create2teste.txt should be printed");

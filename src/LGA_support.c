@@ -992,6 +992,38 @@ int getFileInode(char* filename, Inode inode, FileRecord * fileInode, int *posit
       }
     }
   }
+
+  if (inode.singleIndPtr != INVALID_PTR) {
+    searchResult = _getFileInodeSingInd(inode.singleIndPtr, filename, fileInode, position);
+   if ( searchResult != NOT_FOUND) {
+     if (searchResult == FOUND) {
+        LGA_LOGGER_LOG("[getFileInode] Found the inode");
+        *accessedPtr = 1;
+        *position = *position + (REGISTERS_PER_BLOCK * 1);
+        return FOUND;
+     }
+     else{
+        LGA_LOGGER_WARNING("[getFileInode] Couldnt verify the singInd entry");
+        return FAILED;
+      }
+    }
+  }
+
+  if (inode.doubleIndPtr != INVALID_PTR) {
+    searchResult = _getFileInodeDoubleInd(inode.doubleIndPtr, filename, fileInode, position);
+   if ( searchResult != NOT_FOUND) {
+     if (searchResult == FOUND) {
+        LGA_LOGGER_LOG("[getFileInode] Found the inode");
+        *accessedPtr = 1;
+        *position = *position + (REGISTERS_PER_BLOCK * 1);
+        return FOUND;
+     }
+     else{
+        LGA_LOGGER_WARNING("[getFileInode] Couldnt verify the doubleInd entry");
+        return FAILED;
+      }
+    }
+  }
   return NOT_FOUND;
 }
 
@@ -1025,6 +1057,73 @@ int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode,int *positio
   return NOT_FOUND;
 }
 
+int _getFileInodeSingInd(DWORD singleIndPtr, char* filename, FileRecord * fileInode,int *position) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0, searchResult = 0;
+
+  if (singleIndPtr == INVALID_PTR) {
+    return SUCCEEDED;
+  }
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_getFileInodeSingInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_getFileInodeSingInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      searchResult = _getFileInode(*((DWORD*)ptrBuffer), filename, fileInode, position);
+      if (searchResult != NOT_FOUND) {
+        if (searchResult == FOUND) {
+          LGA_LOGGER_LOG("[_getFileInodeSingInd] Found the inode");
+          return FOUND;
+        } else {
+           LGA_LOGGER_WARNING("[_getFileInodeSingInd] Couldnt verify the singind entry");
+           return FAILED;
+         }
+      }
+    }
+  }
+  return NOT_FOUND;
+}
+
+int _getFileInodeDoubleInd(DWORD doubleIndPtr, char* filename, FileRecord * fileInode,int *position) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0, searchResult = 0;
+
+  if (doubleIndPtr == INVALID_PTR) {
+    return SUCCEEDED;
+  }
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_getFileInodeDoubleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_getFileInodeDoubleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      searchResult = _getFileInodeSingInd(*((DWORD*)ptrBuffer), filename, fileInode, position);
+      if (searchResult != NOT_FOUND) {
+        if (searchResult == FOUND) {
+          LGA_LOGGER_LOG("[_getFileInodeDoubleInd] Found the inode");
+          return FOUND;
+        } else {
+           LGA_LOGGER_WARNING("[_getFileInodeDoubleInd] Couldnt verify the singind entry");
+           return FAILED;
+         }
+      }
+    }
+  }
+  return NOT_FOUND;
+}
 
 DWORD getDirFilenameInode(char* filename, Inode inode) {
   DWORD searchResult;
