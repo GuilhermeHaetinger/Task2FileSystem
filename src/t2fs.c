@@ -118,14 +118,25 @@ int delete2 (char *filename){
       return FAILED;
     }
 
+    char inode[INODE_SIZE];
+    getInode(record.inodeNumber, inode);
     //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
     record.TypeVal = TYPEVAL_INVALIDO;
+
     if(changeWriteBlock(openDirectory.dataPtr[accessedPtr], recordPosition*REGISTER_SIZE, (char*)&record, REGISTER_SIZE)!= SUCCEEDED){
   		LGA_LOGGER_ERROR("[delete2] Record not saved properly on its block");
   		return FAILED;
   	}
-
-    removeInode(record.inodeNumber);
+    openDirectory.blocksFileSize = openDirectory.blocksFileSize - ((Inode*)inode)->blocksFileSize;
+    openDirectory.bytesFileSize = openDirectory.bytesFileSize - ((Inode*)inode)->bytesFileSize;
+    if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[delete2] Couldnt set inode");
+      return FAILED;
+    }
+    if (removeInode(record.inodeNumber) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      return FAILED;
+    }
 
     return SUCCEEDED;
 }

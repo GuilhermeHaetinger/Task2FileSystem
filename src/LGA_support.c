@@ -250,7 +250,10 @@ int addFileToOpenDirectory(FileRecord file){
     //Seta como ocupado o bloco livre obtido
     setBitmap2(BLOCK_TYPE,openDirectory.dataPtr[accessedPtr],1);
   }
-  setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory);
+  if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[addFileToOpenFiles] Couldnt set inode");
+    return FAILED;
+  }
   return SUCCEEDED;
 }
 
