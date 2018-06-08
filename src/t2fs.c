@@ -88,9 +88,10 @@ FILE2 create2 (char *filename){
     if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
       openDirectory = currentDirectory;
       freeList(&pathList,  words);
+      LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+      return FAILED;
       }
     }
-    //return FAILED;
 
   ///
   ///////
@@ -179,9 +180,10 @@ int delete2 (char *filename){
       if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
         openDirectory = currentDirectory;
         freeList(&pathList,  words);
+        LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+        return FAILED;
         }
       }
-      //return FAILED;
 
     ///
     ///////
@@ -278,9 +280,10 @@ FILE2 open2 (char *filename){
     if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
       openDirectory = currentDirectory;
       freeList(&pathList,  words);
+      LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+      return FAILED;
       }
     }
-    //return FAILED;
 
   ///
   ///////
@@ -519,9 +522,10 @@ int mkdir2 (char *pathname){
     if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
       freeList(&pathList,  words);
       openDirectory = currentDirectory;
+      LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+      return FAILED;
       }
     }
-    //return FAILED;
 
   ///
   ///////
@@ -609,9 +613,10 @@ int rmdir2 (char *pathname){
       if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
         freeList(&pathList,  words);
         openDirectory = currentDirectory;
+        LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+        return FAILED;
         }
       }
-      //return FAILED;
 
     ///
     ///////
@@ -711,6 +716,7 @@ int chdir2 (char *pathname){
     if(setNewOpenDirectory(directoriesList[i]) != SUCCEEDED){
       openDirectory = currentDirectory;
       freeList(&directoriesList,  directories);
+      LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
       return FAILED;
     }
   }
@@ -740,7 +746,8 @@ int getcwd2 (char *pathname, int size){
 		LGA_LOGGER_ERROR("[getcw2] SuperBlock not properly initiated");
 		return FAILED;
 	}
-
+    //TODO
+    //FIXME Nao usar openDirName
     if(strlen(openDirName) > size){
 		LGA_LOGGER_ERROR("[getcwd2] nameBuffer is smaller than the actual name");
 		return FAILED;
@@ -802,9 +809,10 @@ DIR2 opendir2 (char *pathname){
     if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
       openDirectory = currentDirectory;
       freeList(&pathList,  words);
+      LGA_LOGGER_ERROR("Couldn't open one directory or file of the path, it doesn't exist");
+      return FAILED;
       }
     }
-    //return FAILED;
 
   ///
   ///////
