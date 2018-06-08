@@ -12,6 +12,8 @@
 #define FOUND      0
 #define MAX_NUM_OF_OPEN_FILES 10
 #define MAX_NUM_OF_OPEN_DIRECTORIES 10
+#define C_TRUE 1
+#define C_FALSE 0
 
 #define INODE_TYPE 0
 #define BLOCK_TYPE 1
@@ -61,7 +63,7 @@ directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
 char* openDirName;
 FileRecord openDirectoryFileRecord;
-
+int BLOCK_SIZE_BYTES;
 
 /*  funções   */
 
@@ -656,10 +658,20 @@ int _removeInode_SingleInd(DWORD singleIndPtr);
 */
 int _removeInode_DoubleInd(DWORD doubleIndPtr);
 
-int removeFileRecord(DWORD inodePos, char* name);
+int removeFileRecord(DWORD inodePos, char* name, int *fileRecordPtr);
 
 int removeFileRecord_Simple(DWORD ptr, char* name);
 
 int _removeFileRecord_SingleInd(DWORD singleIndPtr, char* name);
 
 int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name);
+
+int garbageCollector(DWORD inodePos, int fileRecordPtr);
+
+int isEmptyFileRecord(DWORD ptr);
+
+int isEmptyPtr(DWORD ptr);
+
+int _isEmptyFile_SingleInd(DWORD singleIndPtr);
+
+int _isEmptyFile_DoubleInd(DWORD doubleIndPtr);

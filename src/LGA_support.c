@@ -16,7 +16,6 @@ int openDirectoriesHandler = 0;
 int INODE_SECTOR_INDEX     = 0;
 int INODE_PER_SECTOR       = 0;
 int SECTORS_PER_BLOCK      = 0;
-int BLOCK_SIZE_BYTES       = 0;
 int REGISTERS_PER_BLOCK    = 0;
 int FIRST_REG            = 0;
 int SECOND_REG           = 0;
@@ -338,7 +337,7 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
       return position;
     }
   }
-  LGA_LOGGER_LOG("[searchNewFileRecordPosition] Couldnt get the position");
+  LGA_LOGGER_DEBUG("[searchNewFileRecordPosition] Couldnt get the position");
   return BLOCK_FULL;
 }
 
@@ -364,7 +363,7 @@ int _searchNewFileRecordPosition(DWORD ptr,int *newBlock) {
       return position;
     }
   }
-  LGA_LOGGER_LOG("[_searchNewFileRecordPosition] Couldnt get the position");
+  LGA_LOGGER_DEBUG("[_searchNewFileRecordPosition] Couldnt get the position");
   return -3;
 }
 
@@ -1488,7 +1487,7 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
     }
     LGA_LOGGER_DEBUG("[singleIndGetPos] Searching for position");
     if(*((DWORD*)ptrBuffer) != 0 && *((DWORD*)ptrBuffer) != INVALID_PTR) {
-      LGA_LOGGER_LOG("[singleIndGetPos] ptrBuffer exists");
+      LGA_LOGGER_DEBUG("[singleIndGetPos] ptrBuffer exists");
       try = _searchNewFileRecordPosition(*((DWORD*)ptrBuffer), newBlock);
       if (try >= 0) try = try + i * REGISTERS_PER_BLOCK;
 
@@ -1790,7 +1789,7 @@ int _removeInode_DoubleInd(DWORD doubleIndPtr) {
   return SUCCEEDED;
 }
 
-int removeFileRecord(DWORD inodePos, char* name) {
+int removeFileRecord(DWORD inodePos, char* name, int *fileRecordPtr) {
   char inode[INODE_SIZE];
   int searchResult;
   getInode(inodePos, inode);
@@ -1799,6 +1798,7 @@ int removeFileRecord(DWORD inodePos, char* name) {
     searchResult = removeFileRecord_Simple(((Inode*)&inode)->dataPtr[0], name);
     if (searchResult != NOT_FOUND) {
       if (searchResult == FOUND) {
+        *fileRecordPtr = 0;
         return SUCCEEDED;
       } else {
         LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the first entry");
@@ -1810,6 +1810,7 @@ int removeFileRecord(DWORD inodePos, char* name) {
     searchResult = removeFileRecord_Simple(((Inode*)inode)->dataPtr[1], name);
     if (searchResult != NOT_FOUND) {
       if (searchResult == FOUND) {
+        *fileRecordPtr = 1;
         return SUCCEEDED;
       } else {
         LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the second entry");
@@ -1822,6 +1823,7 @@ int removeFileRecord(DWORD inodePos, char* name) {
     searchResult = _removeFileRecord_SingleInd(((Inode*)inode)->singleIndPtr, name);
     if (searchResult != NOT_FOUND) {
       if (searchResult == FOUND) {
+        *fileRecordPtr = 2;
         return SUCCEEDED;
       } else {
         LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the singleIndPtr entry");
@@ -1834,6 +1836,7 @@ int removeFileRecord(DWORD inodePos, char* name) {
     searchResult = _removeFileRecord_DoubleInd(((Inode*)inode)->doubleIndPtr, name);
     if (searchResult != NOT_FOUND) {
       if (searchResult == FOUND) {
+        *fileRecordPtr = 3;
         return SUCCEEDED;
       } else {
         LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the doubleIndPtr entry");
@@ -1841,6 +1844,7 @@ int removeFileRecord(DWORD inodePos, char* name) {
       }
     }
   }
+  *fileRecordPtr = FAILED;
   return NOT_FOUND;
 }
 
@@ -1935,4 +1939,167 @@ int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name) {
     }
   }
   return NOT_FOUND;
+}
+
+int isEmptyFileRecord(DWORD ptr) {
+  char diskBuffer[BLOCK_SIZE_BYTES], registerBuffer[REGISTER_SIZE];
+
+  //Le o bloco apontado por ptr e coloca no buffer
+  if (readBlock(ptr, diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt read the entry");
+    return FAILED;
+  }
+
+  //Le de registro em registro dentro do buffer
+  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+    if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt get the register file");
+      return FAILED;
+    }
+
+    //Pode ter sido deletada uma entrada do diretorio e setado para INVALIDO entao nao consideramos esse nome desse residuo lixo
+    if(((FileRecord*) registerBuffer)->TypeVal != TYPEVAL_INVALIDO) {
+      return C_FALSE;
+    }
+  }
+  return C_TRUE;
+}
+
+int isEmptyPtr(DWORD ptr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0, searchResult;
+
+  if (readBlock(ptr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      return C_FALSE;
+    }
+  }
+  return C_TRUE;
+}
+
+int garbageCollector(DWORD inodePos, int fileRecordPtr) {
+ char inode[INODE_SIZE];
+ int result = 0;
+ getInode(inodePos, inode);
+
+ if (((Inode*)inode)->dataPtr[0] != INVALID_PTR && fileRecordPtr == 0) {
+   result = isEmptyFileRecord(((Inode*)inode)->dataPtr[0]);
+   if (result == C_TRUE) {
+     ((Inode*)inode)->dataPtr[0] = INVALID_PTR;
+   } else if (result == FAILED) {
+     LGA_LOGGER_ERROR("[garbageCollector] error");
+     return FAILED;
+   }
+ } else if (((Inode*)inode)->dataPtr[1] != INVALID_PTR && fileRecordPtr == 1) {
+   result = isEmptyFileRecord(((Inode*)inode)->dataPtr[1]);
+   if (result == C_TRUE) {
+     ((Inode*)inode)->dataPtr[1] = INVALID_PTR;
+   } else if (result == FAILED) {
+     LGA_LOGGER_ERROR("[garbageCollector] error");
+     return FAILED;
+   }
+ } else if (((Inode*)inode)->singleIndPtr != INVALID_PTR && fileRecordPtr == 2) {
+   result = _isEmptyFile_SingleInd(((Inode*)inode)->singleIndPtr);
+   if (result == C_TRUE) {
+     ((Inode*)inode)->singleIndPtr = INVALID_PTR;
+   } else if (result == FAILED) {
+     LGA_LOGGER_ERROR("[garbageCollector] error");
+     return FAILED;
+   }
+ } else if (((Inode*)inode)->doubleIndPtr != INVALID_PTR && fileRecordPtr == 3) {
+   result = _isEmptyFile_DoubleInd(((Inode*)inode)->doubleIndPtr);
+   if (result == C_TRUE) {
+     ((Inode*)inode)->doubleIndPtr = INVALID_PTR;
+   } else if (result == FAILED) {
+     LGA_LOGGER_ERROR("[garbageCollector] error");
+     return FAILED;
+   }
+ }
+ return SUCCEEDED;
+}
+
+int _isEmptyFile_SingleInd(DWORD singleIndPtr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, result = 0;
+  DWORD zero = INVALID_PTR;
+
+  // Coloca o bloco de indireção no buffer
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  // Le cada ponteiro do bloco de semi indireção
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt getData");
+      return FAILED;
+    }
+    // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
+      result = isEmptyFileRecord(*((DWORD*)ptrBuffer));
+      if (result == C_TRUE) {
+        try = 1;
+        if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
+          LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt changeWriteBlock");
+          return FAILED;
+        }
+      } else if (result == FAILED) {
+        LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt isEmptyFileRecord");
+        return FAILED;
+      }
+    }
+  }
+  if (try == 0) {
+    return C_TRUE;
+  }
+  return C_FALSE;
+}
+
+int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, result = 0;
+  DWORD zero = INVALID_PTR;
+
+  // Coloca o bloco de indireção no buffer
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt read");
+    return FAILED;
+  }
+
+  // Le cada ponteiro do bloco de semi indireção
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt getData");
+      return FAILED;
+    }
+    // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
+      result = _isEmptyFile_SingleInd(*((DWORD*)ptrBuffer));
+      if (result == C_TRUE) {
+        try = 1;
+        if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
+          LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt changeWriteBlock");
+          return FAILED;
+        }
+      } else if (result == FAILED) {
+        LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt isEmptyFileRecord");
+        return FAILED;
+      }
+    }
+  }
+  if (try == 0) {
+    return C_TRUE;
+  }
+  return C_FALSE;
 }
