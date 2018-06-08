@@ -86,8 +86,8 @@ int main(){
   printAllEntries(openDirectory);
 
   //Cria diretorio no segundo diretorio com path absoluto
-  LGA_LOGGER_TEST("Creating Directory3 on directory2 with absolut path");
-  if(mkdir2("/Directory1/Directory2") != SUCCEEDED)
+  LGA_LOGGER_TEST("Changing to /Directory1/Directory2");
+  if(chdir2("/Directory1/Directory2") != SUCCEEDED)
   {
       LGA_LOGGER_TEST("mkdir FAILED");
       return -1;
