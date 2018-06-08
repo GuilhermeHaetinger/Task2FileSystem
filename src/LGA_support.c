@@ -1996,6 +1996,7 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[0]);
    if (result == C_TRUE) {
      ((Inode*)inode)->dataPtr[0] = INVALID_PTR;
+     openDirectory.blocksFileSize--;
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2004,6 +2005,7 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[1]);
    if (result == C_TRUE) {
      ((Inode*)inode)->dataPtr[1] = INVALID_PTR;
+     openDirectory.blocksFileSize--;
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2012,6 +2014,7 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    result = _isEmptyFile_SingleInd(((Inode*)inode)->singleIndPtr);
    if (result == C_TRUE) {
      ((Inode*)inode)->singleIndPtr = INVALID_PTR;
+     openDirectory.blocksFileSize--;
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2020,6 +2023,7 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    result = _isEmptyFile_DoubleInd(((Inode*)inode)->doubleIndPtr);
    if (result == C_TRUE) {
      ((Inode*)inode)->doubleIndPtr = INVALID_PTR;
+     openDirectory.blocksFileSize--;
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2049,14 +2053,16 @@ int _isEmptyFile_SingleInd(DWORD singleIndPtr) {
     if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
       result = isEmptyFileRecord(*((DWORD*)ptrBuffer));
       if (result == C_TRUE) {
-        try = 1;
         if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
           LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt changeWriteBlock");
           return FAILED;
         }
+        openDirectory.blocksFileSize--;
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt isEmptyFileRecord");
         return FAILED;
+      } else {
+        try = 1;
       }
     }
   }
@@ -2087,14 +2093,16 @@ int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
     if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
       result = _isEmptyFile_SingleInd(*((DWORD*)ptrBuffer));
       if (result == C_TRUE) {
-        try = 1;
         if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
           LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt changeWriteBlock");
           return FAILED;
         }
+        openDirectory.blocksFileSize--;
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt isEmptyFileRecord");
         return FAILED;
+      } else {
+        try = 1;
       }
     }
   }

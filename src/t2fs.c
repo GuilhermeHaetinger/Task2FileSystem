@@ -82,46 +82,53 @@ FILE2 create2 (char *filename){
 
   //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
   LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
-  for ( i = 0 + startingDir; i < directories; i++) {
+  for ( i = 0 + startingDir; i < directories-1; i++) {
     LGA_LOGGER_DEBUG("Entering chdir2");
-    //if(setNewOpenDirectory(directoriesList[i]) != SUCCEEDED){
-      //openDirectory = currentDirectory;
-      printf("%s\n",directoriesList[i] );
+    if(setNewOpenDirectory(directoriesList[i]) != SUCCEEDED){
+      openDirectory = currentDirectory;
+      }
     }
-    freeList(&directoriesList,  directories);
     //return FAILED;
 
   ///
   ///////
+  printf("Vou comecar a create2 mesmo, com filename = %s\n",directoriesList[directories-1] );
 
 	FileRecord file;
 	LGA_LOGGER_DEBUG("[create2] Creating FileRecord");
-	if(createRecord(filename, TYPEVAL_REGULAR, &file) != SUCCEEDED){
+	if(createRecord(directoriesList[directories-1], TYPEVAL_REGULAR, &file) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[create2] Couldnt create file");
+    openDirectory = currentDirectory;
+    freeList(&directoriesList,  directories);
 		return FAILED;
 	}
+  freeList(&directoriesList,  directories);
 	LGA_LOGGER_DEBUG("[create2] FileRecord created");
 
 	LGA_LOGGER_LOG("[create2] Adding record to open file vector");
 	FILE2 fileHandler = addFileToOpenFiles(file);
 	if(fileHandler < SUCCEEDED){
 		LGA_LOGGER_ERROR("[create2] File record isn't openable");
+    openDirectory = currentDirectory;
 		return FAILED;
 	}
 
 	LGA_LOGGER_LOG("[create2] Creating inode");
 	if(createRecordInode(file) != SUCCEEDED){
+    openDirectory = currentDirectory;
 		return FAILED;
 	}
 	LGA_LOGGER_LOG("[create2] Inode created");
 
-  	if (addFileToOpenDirectory(file) != SUCCEEDED) {
-  	  LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
-  	  return FAILED;
-  	}
-  	LGA_LOGGER_LOG("[create2] Added file to directory");
+	if (addFileToOpenDirectory(file) != SUCCEEDED) {
+	  LGA_LOGGER_ERROR("[create2] Failed to add file to directory");
+    openDirectory = currentDirectory;
+	  return FAILED;
+	}
+	LGA_LOGGER_LOG("[create2] Added file to directory");
 
-  	return fileHandler;
+  openDirectory = currentDirectory;
+	return fileHandler;
 }
 
 
@@ -163,17 +170,17 @@ int delete2 (char *filename){
   	}
     openDirectory.blocksFileSize = openDirectory.blocksFileSize - ((Inode*)inode)->blocksFileSize;
     openDirectory.bytesFileSize = openDirectory.bytesFileSize - ((Inode*)inode)->bytesFileSize;
-    if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[delete2] Couldnt set inode");
-      return FAILED;
-    }
+
     if (removeInode(record.inodeNumber) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
       return FAILED;
     }
-    //FIXME
     if (garbageCollector(openDirectoryFileRecord.inodeNumber, fileRecordPtr) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      return FAILED;
+    }
+    if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[delete2] Couldnt set inode");
       return FAILED;
     }
 

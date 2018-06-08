@@ -30,7 +30,7 @@ int main(){
         LGA_LOGGER_TEST("chdir FAILED - Returning to previous openDirectory");
         printAllEntries(openDirectory);
         return FAILED;
-    };
+    }
     LGA_LOGGER_TEST("chdir to /Directory1 SUCCEEDED");
     printAllEntries(openDirectory);
 
