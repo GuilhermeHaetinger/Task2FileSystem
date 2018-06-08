@@ -837,6 +837,8 @@ int setNewOpenDirectory(char * directoryName){
       LGA_LOGGER_DEBUG("[setNewOpenDirectory]Changed the directory");
       openDirectory = dirInode;
       openDirectoryFileRecord = dir;
+      //TODO
+      //FIXME Nao usar openDirName
       openDirName = malloc(strlen(directoryName));
       strcpy(openDirName, directoryName);
       return SUCCEEDED;
