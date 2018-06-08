@@ -621,12 +621,6 @@ int rmdir2 (char *pathname){
     ///
     ///////
 
-    if (openDirectory.bytesFileSize > REGISTER_SIZE * 2) {
-      LGA_LOGGER_WARNING("[rmdir2] Unable to delete directory: there are files in there");
-      openDirectory = currentDirectory;
-      freeList(&pathList,  words);
-      return FAILED;
-    }
     //Procura pelo filename passado.
     //Recupera junto seu record, a sua position e em qual ponteiro do openDirectory foi encontrado
     if (getFileInode(pathList[words-1], openDirectory, &record, &recordPosition, &accessedPtr) == NOT_FOUND) {
@@ -638,6 +632,31 @@ int rmdir2 (char *pathname){
     char inode[INODE_SIZE];
     int fileRecordPtr = 0;
     getInode(record.inodeNumber, inode);
+
+    //TODO ESSA PORRA ERA MT NECESSARIA
+    //CASO DIR N ESTEJA VAZIO E TENHA APENAS ./ E ../
+    if (((Inode*)inode)->bytesFileSize > REGISTER_SIZE * 2) {
+      LGA_LOGGER_WARNING("[rmdir2] Unable to delete directory: there are files in there");
+      printAllEntries(openDirectory);
+      printf("bytesFileSize = %d \n", ((Inode*)inode)->bytesFileSize );
+      openDirectory = currentDirectory;
+      freeList(&pathList,  words);
+      return FAILED;
+    }
+    printf("eu\n" );
+    printAllEntries(openDirectory);
+    printf("bytesSizeOpenDirectory = %d\n", ((Inode*)inode)->bytesFileSize );
+    //
+
+
+    //TODO
+    //FIXME liberar bloco do dataPtr[0]
+    {
+      //TODO pegar dataPtr[0] e liberar bloco e limpar se precisar os DWORD 0
+      //TODO setar bitmap de bloco pra 0 desse mesmo bloco
+
+    }
+
     //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
     record.TypeVal = TYPEVAL_INVALIDO;
 
