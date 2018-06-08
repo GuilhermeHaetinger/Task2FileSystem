@@ -120,14 +120,14 @@ int createRecord(char * name, BYTE typeVal, FileRecord * file){
   FileRecord inodeAux;
   int auxPosition, accessedPtr;
   if (getFileInode(name, openDirectory, &inodeAux,&auxPosition, &accessedPtr) != NOT_FOUND) {
-  LGA_LOGGER_WARNING("[createRecord] Already exist a file with that name");
-  return FAILED;
+    LGA_LOGGER_WARNING("[createRecord] Already exist a file with that name");
+    return FAILED;
  	}
 
 	LGA_LOGGER_LOG("[createRecord] Searching for inode position");
 
 	DWORD inodePos = getFreeInode();
-  if(inodePos < 0){
+  if((int)inodePos <= 0){
     LGA_LOGGER_ERROR("[createRecord] exceeded the maximum amount of inodes blocked");
     return FAILED;
   }
@@ -1324,6 +1324,10 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
   if (*singleIndPtr == INVALID_PTR) {
     LGA_LOGGER_WARNING("[singleIndGetPos] Allocating singleInd");
     *singleIndPtr = getFreeBlock();
+    if (cleanBlock(*singleIndPtr) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt clean the singleInd block");
+      return FAILED;
+    }
     setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
     openDirectory.blocksFileSize++;
     return SECOND_REG + 1;
@@ -1354,6 +1358,10 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
     } else {
       LGA_LOGGER_LOG("[singleIndGetPos] Creating ptrBuffer");
       newNewBlock = getFreeBlock();
+      if (cleanBlock(newNewBlock) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt clean the register block");
+        return FAILED;
+      }
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
       changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
       openDirectory.blocksFileSize++;
@@ -1385,6 +1393,10 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
   // Se não existe o endereço do bloco desejado dentro do Single, cria ele
   if (*((DWORD*)ptrBuffer) == 0) {
     newBlock = getFreeBlock();
+    if (cleanBlock(newBlock) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[singleIndWrite] Couldnt clean the singleInd block");
+      return FAILED;
+    }
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(singleIndPtr, ptrPosition, (char*)&newBlock, sizeof(DWORD));
     openDirectory.blocksFileSize++;
@@ -1456,8 +1468,12 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
   LGA_LOGGER_DEBUG("[doubleIndGetPos] Verify if singleInd exists");
 
   if (*doubleIndPtr == INVALID_PTR) {
-    LGA_LOGGER_WARNING("[doubleIndGetPos] Allocating singleInd");
+    LGA_LOGGER_WARNING("[doubleIndGetPos] Allocating doubleInd");
     *doubleIndPtr = getFreeBlock();
+    if (cleanBlock(*doubleIndPtr) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the doubleInd block");
+      return FAILED;
+    }
     setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
     openDirectory.blocksFileSize++;
     return SINGLE_PTR + 1;
@@ -1487,6 +1503,10 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
 
     } else {
       newNewBlock = getFreeBlock();
+      if (cleanBlock(newNewBlock) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the singleInd block");
+        return FAILED;
+      }
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
       changeWriteBlock(*doubleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
       openDirectory.blocksFileSize++;
@@ -1517,6 +1537,10 @@ int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord) {
   // Se não existe o endereço do bloco desejado dentro do Single, cria ele
   if (*((DWORD*)ptrBuffer) == 0) {
     newBlock = getFreeBlock();
+    if (cleanBlock(newBlock) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt clean the doubleInd block");
+      return FAILED;
+    }
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(doubleIndPtr, ptrPosition * sizeof(DWORD), (char*)&newBlock, sizeof(DWORD));
     openDirectory.blocksFileSize++;
@@ -1537,8 +1561,24 @@ void printBlock(DWORD blockPos) {
   char block[BLOCK_SIZE_BYTES];
   readBlock(blockPos, block, BLOCK_SIZE_BYTES);
 
-  for (int i = 0; i < 1024; i++) {
+  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {
     printf("%d ",block[i] );
   }
   printf("\n");
+}
+
+int cleanBlock(DWORD blockPos) {
+  char block[BLOCK_SIZE_BYTES];
+
+  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {
+    block[i] = 0;
+  }
+
+  if (changeWriteBlock(blockPos, 0, block, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[cleanBlock] Couldnt changeWriteBlock");
+    return FAILED;
+  }
+  LGA_LOGGER_DEBUG("[cleanBlock] SUCCEEDED");
+  return SUCCEEDED;
+
 }

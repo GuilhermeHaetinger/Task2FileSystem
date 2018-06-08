@@ -610,3 +610,13 @@ int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
  * blockPos --> Posição do bloco
 */
 void printBlock(DWORD blockPos);
+
+/*
+ * Limpa um bloco com 0's
+ * @params
+ * blockPos --> Posição do bloco
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int cleanBlock(DWORD blockPos);
