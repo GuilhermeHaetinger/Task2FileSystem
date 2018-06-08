@@ -2115,3 +2115,18 @@ int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
   }
   return C_FALSE;
 }
+
+void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode ){
+  int  i = 0;
+  char tipo[6];
+  (isInode == 1) ? strcpy(tipo,"inode") : strcpy(tipo,"bloco");
+
+  for (i = 0; i < MAXSIZE; i++) {
+    printf("%s: %d   %d= \n",tipo,i,getBitmap2(BITMAP_TYPE, i) );
+  }
+
+// setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
+// setBitmap2(BLOCK_TYPE,openDirectory.dataPtr[accessedPtr],1);
+
+
+}

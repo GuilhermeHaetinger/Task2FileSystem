@@ -675,3 +675,5 @@ int isEmptyPtr(DWORD ptr);
 int _isEmptyFile_SingleInd(DWORD singleIndPtr);
 
 int _isEmptyFile_DoubleInd(DWORD doubleIndPtr);
+
+void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode );
