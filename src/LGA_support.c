@@ -1553,17 +1553,20 @@ int singleIndPrint(DWORD singleIndPtr) {
   if (singleIndPtr == INVALID_PTR) {
     return SUCCEEDED;
   }
+
+  // Coloca o bloco de indireção no buffer
   if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
     LGA_LOGGER_ERROR("[singleIndPrint] Couldnt read");
     return FAILED;
   }
 
+  // Le cada ponteiro do bloco de semi indireção
   for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[singleIndPrint] Couldnt getData");
       return FAILED;
     }
-
+    // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
     if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
       _printEntries(*((DWORD*)ptrBuffer));
     }
@@ -1579,17 +1582,23 @@ int doubleIndPrint(DWORD doubleIndPtr) {
   if (doubleIndPtr == INVALID_PTR) {
     return SUCCEEDED;
   }
+
+  // Le o bloco de dupla indireção no buffer
   if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
     LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt read");
     return FAILED;
   }
 
+  // Le cada ponteiro de indireção do bloco
   for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt getData");
       return FAILED;
     }
 
+    // Faz alguma coisa com o ponteiro de INDIREÇÃO (aqui não é bloco de dados ainda)
+    // Por isso que sempre faço 2 funções, single e Double, por aqui posso chamar
+    // a single e ela faz o resto.
     if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
       singleIndPrint(*((DWORD*)ptrBuffer));
     }
