@@ -64,11 +64,11 @@ FILE2 create2 (char *filename){
   ////////
   ///
   Inode currentDirectory = openDirectory;
-  char **directoriesList; //Igual um argv
-  int i, startingDir = 0, directories = parse(filename, &directoriesList);
+  char **pathList; //Igual um argv
+  int i, startingDir = 0, words = parse(filename, &pathList);
 
   //Caso o primeiro diretorio seja o / se seta para o openDirectory o rootDirectory
-  if (directoriesList[0][0] == '/')
+  if (pathList[0][0] == '/')
   {
     //TODO
     LGA_LOGGER_LOG("[chdir2] Comeca pelo raiz o  pathname");
@@ -82,9 +82,9 @@ FILE2 create2 (char *filename){
 
   //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
   LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
-  for ( i = 0 + startingDir; i < directories-1; i++) {
+  for ( i = 0 + startingDir; i < words-1; i++) {
     LGA_LOGGER_DEBUG("Entering chdir2");
-    if(setNewOpenDirectory(directoriesList[i]) != SUCCEEDED){
+    if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
       openDirectory = currentDirectory;
       }
     }
@@ -92,17 +92,16 @@ FILE2 create2 (char *filename){
 
   ///
   ///////
-  printf("Vou comecar a create2 mesmo, com filename = %s\n",directoriesList[directories-1] );
 
 	FileRecord file;
 	LGA_LOGGER_DEBUG("[create2] Creating FileRecord");
-	if(createRecord(directoriesList[directories-1], TYPEVAL_REGULAR, &file) != SUCCEEDED){
+	if(createRecord(pathList[words-1], TYPEVAL_REGULAR, &file) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[create2] Couldnt create file");
     openDirectory = currentDirectory;
-    freeList(&directoriesList,  directories);
+    freeList(&pathList,  words);
 		return FAILED;
 	}
-  freeList(&directoriesList,  directories);
+  freeList(&pathList,  words);
 	LGA_LOGGER_DEBUG("[create2] FileRecord created");
 
 	LGA_LOGGER_LOG("[create2] Adding record to open file vector");
@@ -152,9 +151,43 @@ int delete2 (char *filename){
     FileRecord record;
     int recordPosition, accessedPtr;
 
+    ////////
+    ///
+    Inode currentDirectory = openDirectory;
+    char **pathList; //Igual um argv
+    int i, startingDir = 0, words = parse(filename, &pathList);
+
+    //Caso o primeiro diretorio seja o / se seta para o openDirectory o rootDirectory
+    if (pathList[0][0] == '/')
+    {
+      //TODO
+      LGA_LOGGER_LOG("[chdir2] Comeca pelo raiz o  pathname");
+      if(getRootInodeFile((char *)&openDirectory, (char *)&openDirectoryFileRecord) != SUCCEEDED){
+        LGA_LOGGER_ERROR("[initializeSystem] Root inode not retrieved correctly");
+        return FAILED;
+      }
+      //Nao precisa ler a primeira string parseada pois era / e já a atratamos
+      startingDir = 1;
+    }
+
+    //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
+    LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
+    for ( i = 0 + startingDir; i < words-1; i++) {
+      LGA_LOGGER_DEBUG("Entering chdir2");
+      if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
+        openDirectory = currentDirectory;
+        }
+      }
+      //return FAILED;
+
+    ///
+    ///////
+
     //Procura pelo filename passado.
     //Recupera junto seu record, a sua position e em qual ponteiro do openDirectory foi encontrado
-    if (getFileInode(filename, openDirectory, &record, &recordPosition, &accessedPtr) == NOT_FOUND) {
+    if (getFileInode(pathList[words-1], openDirectory, &record, &recordPosition, &accessedPtr) == NOT_FOUND) {
+      openDirectory = currentDirectory;
+      freeList(&pathList,  words);
       return FAILED;
     }
 
@@ -164,26 +197,33 @@ int delete2 (char *filename){
     //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
     record.TypeVal = TYPEVAL_INVALIDO;
 
-    if(removeFileRecord(openDirectoryFileRecord.inodeNumber, filename, &fileRecordPtr) != SUCCEEDED){
+    if(removeFileRecord(openDirectoryFileRecord.inodeNumber, pathList[words-1], &fileRecordPtr) != SUCCEEDED){
   		LGA_LOGGER_ERROR("[delete2] Record not saved properly on its block");
+      openDirectory = currentDirectory;
+      freeList(&pathList,  words);
   		return FAILED;
   	}
+    freeList(&pathList,  words);
     openDirectory.blocksFileSize = openDirectory.blocksFileSize - ((Inode*)inode)->blocksFileSize;
     openDirectory.bytesFileSize = openDirectory.bytesFileSize - ((Inode*)inode)->bytesFileSize;
 
     if (removeInode(record.inodeNumber) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      openDirectory = currentDirectory;
       return FAILED;
     }
     if (garbageCollector(openDirectoryFileRecord.inodeNumber, fileRecordPtr) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      openDirectory = currentDirectory;
       return FAILED;
     }
     if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[delete2] Couldnt set inode");
+      openDirectory = currentDirectory;
       return FAILED;
     }
 
+    openDirectory = currentDirectory;
     return SUCCEEDED;
 }
 
