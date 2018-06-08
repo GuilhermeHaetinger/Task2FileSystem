@@ -711,6 +711,41 @@ void changeSectorInode(int start, char* data, int dataSize, char* diskSector, ch
   }
 }
 
+int removeInode(DWORD inodePos) {
+  char inode[INODE_SIZE];
+  getInode(inodePos, inode);
+
+  if (((Inode*)inode)->dataPtr[0] != INVALID_PTR) {
+    if (setBitmap2(BLOCK_TYPE, ((Inode*)inode)->dataPtr[0], BLOCK_FREE) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeInode] Couldnt set bitmap2 dataptr0");
+      return FAILED;
+    }
+  }
+  if (((Inode*)inode)->dataPtr[1] != INVALID_PTR) {
+    if (setBitmap2(BLOCK_TYPE, ((Inode*)inode)->dataPtr[1], BLOCK_FREE) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeInode] Couldnt set bitmap2 dataptr1");
+      return FAILED;
+    }
+  }
+  if (((Inode*)inode)->singleIndPtr != INVALID_PTR) {
+    if (_removeInode_SingleInd(((Inode*)inode)->singleIndPtr) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeInode] Couldnt _removeInode_SingleInd");
+      return FAILED;
+    }
+  }
+  if (((Inode*)inode)->doubleIndPtr != INVALID_PTR) {
+    if (_removeInode_DoubleInd(((Inode*)inode)->doubleIndPtr) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[removeInode] Couldnt _removeInode_DoubleInd");
+      return FAILED;
+    }
+  }
+
+  if (setBitmap2(INODE_TYPE, inodePos, INODE_FREE) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[removeInode] Couldnt set bitmap2 inode");
+    return FAILED;
+  }
+  return SUCCEEDED;
+}
 /* ################################ */
 /* ----------   ROOT_SECTION    ---------- */
 /* ################################ */
@@ -1514,7 +1549,6 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
 int singleIndPrint(DWORD singleIndPtr) {
   char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
   int try = 0, newNewBlock = 0;
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
 
   if (singleIndPtr == INVALID_PTR) {
     return SUCCEEDED;
@@ -1679,5 +1713,67 @@ int cleanBlock(DWORD blockPos) {
   }
   LGA_LOGGER_DEBUG("[cleanBlock] SUCCEEDED");
   return SUCCEEDED;
+}
 
+int _removeInode_SingleInd(DWORD singleIndPtr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0;
+
+  if (singleIndPtr == INVALID_PTR) {
+    return SUCCEEDED;
+  }
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      if (setBitmap2(BLOCK_TYPE, *((DWORD*)ptrBuffer), BLOCK_FREE) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt set bitmap");
+      }
+    }
+  }
+  if (setBitmap2(BLOCK_TYPE, singleIndPtr, BLOCK_FREE) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt set bitmap");
+  }
+  return SUCCEEDED;
+}
+
+int _removeInode_DoubleInd(DWORD doubleIndPtr) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0;
+
+  if (doubleIndPtr == INVALID_PTR) {
+    return SUCCEEDED;
+  }
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt getData");
+      return FAILED;
+    }
+
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+      if (_removeInode_SingleInd(*((DWORD*)ptrBuffer)) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt remove SingInd");
+      }
+      if (setBitmap2(BLOCK_TYPE, *((DWORD*)ptrBuffer), BLOCK_FREE) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt set bitmap");
+      }
+    }
+  }
+  if (setBitmap2(BLOCK_TYPE, doubleIndPtr, BLOCK_FREE) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt set bitmap");
+  }
+  return SUCCEEDED;
 }

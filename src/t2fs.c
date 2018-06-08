@@ -125,16 +125,7 @@ int delete2 (char *filename){
   		return FAILED;
   	}
 
-    //TODO aqui alguma especie de recursao para ir liberando também os inodes e possiveis indirecoes
-    //TODO que o arquivo estivesse apontando
-    //Para os inodes de fato
-    // inodes->blocksFileSize = 0;
-    // inodes->bytesFileSize = 0;
-    // inodes->dataPtr[0] = INVALID_PTR;
-    // inodes->dataPtr[1] = INVALID_PTR;
-
-    //Seta no bitmap como livre o inode que o record estava apontando
-    setBitmap2(INODE_TYPE, record.inodeNumber, INODE_FREE);
+    removeInode(record.inodeNumber);
 
     return SUCCEEDED;
 }

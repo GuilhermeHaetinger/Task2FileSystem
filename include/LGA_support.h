@@ -28,6 +28,7 @@
 
 #define BLOCK_FULL -3
 #define BLOCK_BUSY 1
+#define BLOCK_FREE 0
 
 /*  tipos   */
 typedef struct t2fs_superbloco SuperBlock;
@@ -624,3 +625,33 @@ int cleanBlock(DWORD blockPos);
 int _getFileInodeSingInd(DWORD singleIndPtr, char* filename, FileRecord * fileInode,int *position);
 
 int _getFileInodeDoubleInd(DWORD doubleIndPtr, char* filename, FileRecord * fileInode,int *position);
+
+/*
+ * Remove todos os blocos apontados pelo inode
+ * @params
+ * inodePos --> Posição do inode
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int removeInode(DWORD inodePos);
+
+/*
+ * Remove todos os blocos indiretamente apontados por ele
+ * @params
+ * singleIndPtr --> Ponteiro indireto
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int _removeInode_SingleInd(DWORD singleIndPtr);
+
+/*
+  * Remove todos os blocos indiretamente apontados por ele
+ * @params
+ * doubleIndPtr --> Ponteiro duplo indireto
+ * returns:
+ *  0  -> sucesso
+ * -1  -> caso tenha falhado
+*/
+int _removeInode_DoubleInd(DWORD doubleIndPtr);
