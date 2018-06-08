@@ -448,25 +448,64 @@ int mkdir2 (char *pathname){
 
 	LGA_LOGGER_DEBUG("[mkdir2] SuperBlock initialized");
 
+
+  ////////
+  ///
+  Inode currentDirectory = openDirectory;
+  char **pathList; //Igual um argv
+  int i, startingDir = 0, words = parse(pathname, &pathList);
+
+  //Caso o primeiro diretorio seja o / se seta para o openDirectory o rootDirectory
+  if (pathList[0][0] == '/')
+  {
+    //TODO
+    LGA_LOGGER_LOG("[chdir2] Comeca pelo raiz o  pathname");
+    if(getRootInodeFile((char *)&openDirectory, (char *)&openDirectoryFileRecord) != SUCCEEDED){
+      LGA_LOGGER_ERROR("[initializeSystem] Root inode not retrieved correctly");
+      return FAILED;
+    }
+    //Nao precisa ler a primeira string parseada pois era / e já a atratamos
+    startingDir = 1;
+  }
+
+  //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
+  LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
+  for ( i = 0 + startingDir; i < words-1; i++) {
+    LGA_LOGGER_DEBUG("Entering chdir2");
+    if(setNewOpenDirectory(pathList[i]) != SUCCEEDED){
+      openDirectory = currentDirectory;
+      }
+    }
+    //return FAILED;
+
+  ///
+  ///////
+
 	FileRecord file;
 	LGA_LOGGER_DEBUG("[mkdir2] Creating FileRecord");
-	if(createRecord(pathname, TYPEVAL_DIRETORIO, &file) != SUCCEEDED){
+	if(createRecord(pathList[words-1], TYPEVAL_DIRETORIO, &file) != SUCCEEDED){
+    openDirectory = currentDirectory;
+    freeList(&pathList,  words);
 		return FAILED;
 	}
+  freeList(&pathList,  words);
 	LGA_LOGGER_DEBUG("[mkdir2] FileRecord created");
 
 	LGA_LOGGER_LOG("[mkdir2] Creating inode");
 	if(createDirectoryInode(file, openDirectoryFileRecord.inodeNumber) != SUCCEEDED){
+    openDirectory = currentDirectory;
 		return FAILED;
 	}
 	LGA_LOGGER_LOG("[mkdir2] Inode created");
 
 	if (addFileToOpenDirectory(file) != SUCCEEDED) {
 	  LGA_LOGGER_ERROR("[mkdir2] Failed to add file to directory");
+    openDirectory = currentDirectory;
 	  return FAILED;
 	}
 	LGA_LOGGER_LOG("[mkdir2] Added file to directory");
 
+  openDirectory = currentDirectory;
   return SUCCEEDED;
 }
 
