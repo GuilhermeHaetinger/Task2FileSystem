@@ -170,6 +170,7 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
   fileInode.dataPtr[0] = sectorPos;
+  fileInode.bytesFileSize = REGISTER_SIZE * 2;
 
   setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
 
@@ -1992,6 +1993,7 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
  int result = 0;
  getInode(inodePos, inode);
 
+//TODO falta liberar bloco?
  if (((Inode*)inode)->dataPtr[0] != INVALID_PTR && fileRecordPtr == 0) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[0]);
    if (result == C_TRUE) {
