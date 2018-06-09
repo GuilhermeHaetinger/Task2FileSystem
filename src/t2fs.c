@@ -732,6 +732,12 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 		Em caso de erro, ser� retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
 int chdir2 (char *pathname){
+  LGA_LOGGER_DEBUG("[Entering chdir2]");
+  if(initializeSuperBlock() != 0){
+    LGA_LOGGER_ERROR("[chdir2] SuperBlock not properly initiated");
+    return FAILED;
+  }
+  LGA_LOGGER_DEBUG("[chdir2] SuperBlock initialized");
 	///
 	///USE PARSER TO GET TO THE NEW OPEN DIRECTORY --- USING PATHNAME AS DIRECTORY NAME FOR NOW
 	///
