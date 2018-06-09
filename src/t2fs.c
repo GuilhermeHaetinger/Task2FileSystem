@@ -308,7 +308,7 @@ FILE2 open2 (char *filename){
 
 	LGA_LOGGER_DEBUG("[open2] File opened properly");
   openDirectory = currentDirectory;
-  return SUCCEEDED;
+  return fileHandler;
 }
 
 /*-----------------------------------------------------------------------------
@@ -345,11 +345,24 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna o nï¿
 	Em caso de erro, serï¿½ retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 int read2 (FILE2 handle, char *buffer, int size){
-    if(openFiles[handle].CP == -1){
+  if(openFiles[handle].CP == -1){
 		LGA_LOGGER_ERROR("[read2]There is nothing to read from CP on");
 		return FAILED;
 	}
+  Inode fileInode;
+  if(getInode(openFiles[handle].file.inodeNumber, (char *)&fileInode) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[read2] Failed to read file's inode");
     return FAILED;
+  }
+  int readBytes = readContentOnDisk(&fileInode, &openFiles[handle].CP, buffer, size);
+  if(readBytes < SUCCEEDED){
+    LGA_LOGGER_ERROR("[read2] Failed to read file");
+    return FAILED;
+  }
+
+  openFiles[handle].CP += size;
+  LGA_LOGGER_DEBUG("[read2] Read file succesfull");
+  return readBytes;
 }
 
 /*-----------------------------------------------------------------------------
@@ -380,13 +393,19 @@ int write2 (FILE2 handle, char *buffer, int size){
 		LGA_LOGGER_DEBUG("[write2] CP set to maximum byte");
 		CP = fileInode.bytesFileSize;
 	}
-	if(writeOnFile(&fileInode, openFiles[handle].CP, buffer, size) != SUCCEEDED){
+  int written = writeContentOnDisk(&fileInode, &openFiles[handle].CP, buffer, size);
+	if(written < SUCCEEDED){
 		LGA_LOGGER_ERROR("[write2] Couldnt write on file");
 		return FAILED;
 	}
 
-	openFiles[handle].CP += size;
-	fileInode.bytesFileSize += size;
+	openFiles[handle].CP += written;
+	fileInode.bytesFileSize += written;
+
+  if(setInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[write2] Couldnt save inode");
+    return FAILED;
+  }
 
   return SUCCEEDED;
 }
@@ -423,9 +442,13 @@ int truncate2 (FILE2 handle){
 		return FAILED;
 	}
 	LGA_LOGGER_DEBUG("[truncate2] Invalidating bytes");
-	invalidateFromCPOn(openFiles[handle].CP, fileInode);
+	invalidateFromCPOn(openFiles[handle].CP, &fileInode);
 
-	fileInode.bytesFileSize -= openFiles[handle].CP;
+  fileInode.bytesFileSize = openFiles[handle].CP;
+   if(setInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
+    LGA_LOGGER_ERROR("[truncate2] Couldnt save inode");
+    return FAILED;
+  }
 
   return SUCCEEDED;
 }
@@ -450,10 +473,11 @@ int seek2 (FILE2 handle, DWORD offset){
 		LGA_LOGGER_ERROR("[seek2] Not able to get file's inode");
 		return FAILED;
 	}
-	if(offset < -1){
+	/*if(offset < -1){
+    printf("%d", -offset);
 		LGA_LOGGER_ERROR("[seek2] Can't seek to a negative integer < -1");
 		return FAILED;
-	}
+	}*/
 	if(fileInode.bytesFileSize < offset){
 		LGA_LOGGER_ERROR("[seek2] offset not in file");
 		return FAILED;
@@ -765,15 +789,16 @@ int getcwd2 (char *pathname, int size){
 		LGA_LOGGER_ERROR("[getcw2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+
+  /*
     //TODO
     //FIXME Nao usar openDirName
     if(strlen(openDirName) > size){
 		LGA_LOGGER_ERROR("[getcwd2] nameBuffer is smaller than the actual name");
 		return FAILED;
 	}
-
-	LGA_LOGGER_DEBUG("[getcwd2] Name passed correctly");
-	strcpy(pathname, openDirName);
+*/
+  strcpy(pathname, openDirectoryFileRecord.name);
 
   return SUCCEEDED;
 }

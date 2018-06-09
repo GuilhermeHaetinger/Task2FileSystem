@@ -61,7 +61,6 @@ Inode closedDir;
 recordHandler openFiles[MAX_NUM_OF_OPEN_FILES];
 directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
-char* openDirName;
 FileRecord openDirectoryFileRecord;
 int BLOCK_SIZE_BYTES;
 
@@ -528,7 +527,7 @@ int _searchNewFileRecordPosition(DWORD ptr,int *newBlock);
  * CP --> Contador de posicao
  * fileInode -> arquivo em questao
 */
-int invalidateFromCPOn(DWORD CP, Inode fileInode);
+int invalidateFromCPOn(DWORD CP, Inode *fileInode);
 
 int writeOnFile(Inode *fileInode, int CP, char * content, int contentSize);
 
@@ -677,3 +676,15 @@ int _isEmptyFile_SingleInd(DWORD singleIndPtr);
 int _isEmptyFile_DoubleInd(DWORD doubleIndPtr);
 
 void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode );
+int singleIndInvalidate(DWORD doubleIndPtr, int pos, int offset);
+int doubleIndInvalidate(DWORD doubleIndPtr, int pos);
+
+int writeOnPtr(DWORD ptr, int * CP, char * content, int size);
+int writeOnIndirection_single(DWORD ptr, int * CP, char * content, int size);
+int writeOnIndirection_double(DWORD ptr, int * CP, char * content, int size);
+int writeContentOnDisk(Inode * fileInode, int *CP, char * content, int size);
+int readOnPtr(DWORD ptr, int * CP, char * content, int size);
+int readOnIndirection_single(DWORD ptr, int * CP, char * content, int size);
+int readOnIndirection_double(DWORD ptr, int * CP, char * content, int size);
+int readContentOnDisk(Inode * fileInode, int *CP, char * content, int size);
+int cleanIndBlock(DWORD ptr);
