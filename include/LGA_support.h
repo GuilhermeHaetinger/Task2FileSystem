@@ -63,7 +63,7 @@ directoryHandler openDirectories[MAX_NUM_OF_OPEN_DIRECTORIES];
 Inode openDirectory;
 FileRecord openDirectoryFileRecord;
 int BLOCK_SIZE_BYTES;
-
+int REGISTERS_PER_BLOCK;
 /*  funções   */
 
 /*
@@ -692,3 +692,6 @@ int cleanIndBlock(DWORD ptr);
 void printQuantBlock();
 
 void printQuantInode();
+
+int getSpecificEntry_SingleInd(DWORD singleIndPtr, int entryNum, char* buffer);
+int getSpecificEntry_DoubleInd(DWORD doubleIndPtr, int entryNum, char* buffer);

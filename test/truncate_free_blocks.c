@@ -28,7 +28,7 @@ int main(){
 
     printQuantBlock();
     printQuantInode();
-    
+
     LGA_LOGGER_TEST("after creating file");
     write2(openFile2, textToWrite, 2* BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES);
     openFile2 = open2("indTest.txt");
@@ -46,7 +46,7 @@ int main(){
         printf("%c", buffer[i]);
     }
     printf("\n" );
-    seek2(openFile2, 0);
+
     printf("truncate = %d \n", truncate2(openFile2));
     printQuantBlock();
     printQuantInode();

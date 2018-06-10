@@ -16,7 +16,6 @@ int openDirectoriesHandler = 0;
 int INODE_SECTOR_INDEX     = 0;
 int INODE_PER_SECTOR       = 0;
 int SECTORS_PER_BLOCK      = 0;
-int REGISTERS_PER_BLOCK    = 0;
 int FIRST_REG            = 0;
 int SECOND_REG           = 0;
 int SINGLE_REG           = 0;
@@ -126,7 +125,7 @@ int createRecord(char * name, BYTE typeVal, FileRecord * file){
 
 	DWORD inodePos = getFreeInode();
   if((int)inodePos <= 0){
-    LGA_LOGGER_ERROR("[createRecord] exceeded the maximum amount of inodes blocked");
+    LGA_LOGGER_WARNING("[createRecord] exceeded the maximum amount of inodes blocked");
     return FAILED;
   }
 
@@ -169,9 +168,7 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
   fileInode.dataPtr[0] = sectorPos;
-  fileInode.bytesFileSize = REGISTER_SIZE * 2;
-
-  setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
+  fileInode.bytesFileSize = REGISTER_SIZE * 2 + sizeof(DWORD);
 
 	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("[createDirectoryInode] Inode not saved properly");
@@ -313,6 +310,10 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
       LGA_LOGGER_ERROR("[searchNewFileRecordPosition] No available blocks");
       return FAILED;
     }
+    setBitmap2(BLOCK_TYPE, *ptr , BLOCK_BUSY);
+    openDirectory.blocksFileSize++;
+    openDirectory.bytesFileSize+= sizeof(DWORD);
+
     *newBlock = 1;
   }
 
@@ -412,7 +413,7 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
       LGA_LOGGER_ERROR("[writeFilePositionInInode] Fail dataPtr0");
       return FAILED;
     }
-
+    openDirectory.bytesFileSize += REGISTER_SIZE;
     LGA_LOGGER_LOG("[writeFilePositionInInode] Success dataptr0");
     return SUCCEEDED;
   } else if (position <= SECOND_REG) {
@@ -421,6 +422,7 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
       LGA_LOGGER_ERROR("[writeFilePositionInInode] Fail dataPtr1");
       return FAILED;
     }
+    openDirectory.bytesFileSize += REGISTER_SIZE;
     LGA_LOGGER_LOG("[writeFilePositionInInode] Success dataPtr1");
     return SUCCEEDED;
   } else if (position <= SINGLE_PTR) {
@@ -443,32 +445,39 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
 }
 
 int getSpecificEntry(Inode dir, int entryNum, char* buffer){
-  int entriesPerBlock = superBlock.blockSize * REGISTERS_PER_SECTOR;
-  bool isEntryInPtr1  = entryNum < entriesPerBlock;
-  bool isEntryInPtr2  = entriesPerBlock <= entryNum && entryNum < 2*entriesPerBlock;
+  bool isEntryInPtr1  = entryNum < REGISTERS_PER_BLOCK;
+  bool isEntryInPtr2  = REGISTERS_PER_BLOCK <= entryNum && entryNum < 2* REGISTERS_PER_BLOCK;
   char diskBuffer[BLOCK_SIZE_BYTES];
 
   if(isEntryInPtr1){
     if (readBlock(dir.dataPtr[0], diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[getSpecificEntry] couldnt read the Block from dataPtr 0");
+      LGA_LOGGER_WARNING("[getSpecificEntry] couldnt read the Block from dataPtr 0");
       return FAILED;
     }
 
   }else if(isEntryInPtr2){
     if (readBlock(dir.dataPtr[1], diskBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[getSpecificEntry] couldnt read the Block from dataPtr 1");
+      LGA_LOGGER_WARNING("[getSpecificEntry] couldnt read the Block from dataPtr 1");
       return FAILED;
     }
-    entryNum = entryNum - entriesPerBlock;
+    entryNum = entryNum - REGISTERS_PER_BLOCK;
+  } else if(entryNum < 2 * REGISTERS_PER_BLOCK + PTR_PER_BLOCK * REGISTERS_PER_BLOCK) {
+    if (getSpecificEntry_SingleInd(dir.singleIndPtr, entryNum - SECOND_REG + 1, buffer) != SUCCEEDED) {
+      LGA_LOGGER_WARNING("[getSpecificEntry] couldnt read the Block from singleInd");
+      return FAILED;
+    }
+    return SUCCEEDED;
+  } else if (entryNum < 2 * REGISTERS_PER_BLOCK + PTR_PER_BLOCK * REGISTERS_PER_BLOCK + PTR_PER_BLOCK * PTR_PER_BLOCK * REGISTERS_PER_BLOCK) {
+    if (getSpecificEntry_DoubleInd(dir.doubleIndPtr, entryNum - SINGLE_PTR+1, buffer) != SUCCEEDED) {
+      LGA_LOGGER_WARNING("[getSpecificEntry] couldnt read the Block from doubleInd");
+      return FAILED;
+    }
+    return SUCCEEDED;
   }
-
   if (getRegisterFile(entryNum, diskBuffer, BLOCK_SIZE_BYTES, buffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[getSpecificEntry] couldnt get the entry");
       return FAILED;
     }
-
-///TODO INDIREÇÃO!!!!!!!!!!!!!
-
     return SUCCEEDED;
 }
 
@@ -659,7 +668,10 @@ int saveInode(DWORD inodePos, char* data){
   }
 
   //TODO talvez testar se consegue lockar direito inode
-  setBitmap2(INODE_TYPE, inodePos, INODE_BUSY);
+  if (setBitmap2(INODE_TYPE, inodePos, INODE_BUSY) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[saveInode] Couldnt set bitmap");
+    return FAILED;
+  }
   //Obtem o setor onde se encontra o inode
   int inodeSectorPos = getSectorIndexInode(inodePos);
 
@@ -1148,7 +1160,7 @@ int _getFileInodeSingInd(DWORD singleIndPtr, char* filename, FileRecord * fileIn
       return FAILED;
     }
 
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && *((DWORD*)ptrBuffer) != 0) {
       searchResult = _getFileInode(*((DWORD*)ptrBuffer), filename, fileInode, position);
       if (searchResult != NOT_FOUND) {
         if (searchResult == FOUND) {
@@ -1182,7 +1194,7 @@ int _getFileInodeDoubleInd(DWORD doubleIndPtr, char* filename, FileRecord * file
       return FAILED;
     }
 
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO && *((DWORD*)ptrBuffer) != 0) {
       searchResult = _getFileInodeSingInd(*((DWORD*)ptrBuffer), filename, fileInode, position);
       if (searchResult != NOT_FOUND) {
         if (searchResult == FOUND) {
@@ -1493,11 +1505,12 @@ int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize){
   return contentSize;
 }
 
+// OK
 int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
   LGA_LOGGER_DEBUG("[singleIndGetPos] Verify if singleInd exists");
 
   if (*singleIndPtr == INVALID_PTR) {
-    LGA_LOGGER_WARNING("[singleIndGetPos] Allocating singleInd");
+    LGA_LOGGER_LOG("[singleIndGetPos] Allocating singleInd");
     *singleIndPtr = getFreeBlock();
     if (cleanBlock(*singleIndPtr) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt clean the singleInd block");
@@ -1505,6 +1518,7 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
     }
     setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
     openDirectory.blocksFileSize++;
+    openDirectory.bytesFileSize+= sizeof(DWORD);
     return SECOND_REG + 1;
   }
 
@@ -1540,6 +1554,7 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
       changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
       openDirectory.blocksFileSize++;
+      openDirectory.bytesFileSize+= sizeof(DWORD);
       try = i * REGISTERS_PER_BLOCK;
     }
     if (try >= 0) return try + (SECOND_REG + 1);
@@ -1547,6 +1562,7 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
   return BLOCK_FULL;
 }
 
+// OK
 int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
 
   char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
@@ -1575,6 +1591,7 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(singleIndPtr, ptrPosition, (char*)&newBlock, sizeof(DWORD));
     openDirectory.blocksFileSize++;
+    openDirectory.bytesFileSize += sizeof(DWORD);
     strcpy(ptrBuffer,(char*)&newBlock);
   }
 
@@ -1583,7 +1600,105 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
     LGA_LOGGER_ERROR("[singleIndWrite] Couldnt changeWrite");
     return FAILED;
   }
+  openDirectory.bytesFileSize += REGISTER_SIZE;
   LGA_LOGGER_LOG("[singleIndWrite] Sucess");
+  return SUCCEEDED;
+}
+
+// OK
+int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
+  LGA_LOGGER_DEBUG("[doubleIndGetPos] Verify if singleInd exists");
+
+  if (*doubleIndPtr == INVALID_PTR) {
+    LGA_LOGGER_WARNING("[doubleIndGetPos] Allocating doubleInd");
+    *doubleIndPtr = getFreeBlock();
+    if (cleanBlock(*doubleIndPtr) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the doubleInd block");
+      return FAILED;
+    }
+    setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
+    openDirectory.blocksFileSize++;
+    openDirectory.bytesFileSize+= sizeof(DWORD);
+    return SINGLE_PTR + 1;
+  }
+
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
+  int try = 0, newNewBlock = 0;
+  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
+
+  LGA_LOGGER_DEBUG("[doubleIndGetPos] Reading Block");
+  if (readBlock(*doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt read");
+    return FAILED;
+  }
+
+  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+    LGA_LOGGER_DEBUG("[doubleIndGetPos] Getting Data");
+    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt getData");
+      return FAILED;
+    }
+    LGA_LOGGER_DEBUG("[doubleIndGetPos] Searching for position");
+    if(*((DWORD*)ptrBuffer) != 0 && *((DWORD*)ptrBuffer) != INVALID_PTR) {
+
+      try = singleIndGetPos(((DWORD*)ptrBuffer), newBlock) - (SECOND_REG + 1);
+      if (try >= 0) try = try + (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
+
+    } else {
+      newNewBlock = getFreeBlock();
+      if (cleanBlock(newNewBlock) != SUCCEEDED) {
+        LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the singleInd block");
+        return FAILED;
+      }
+      setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
+      changeWriteBlock(*doubleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
+      openDirectory.blocksFileSize++;
+      openDirectory.bytesFileSize+= sizeof(DWORD);
+      try = (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
+    }
+    if (try >= 0) return try + (SINGLE_PTR + 1);
+  }
+  return BLOCK_FULL;
+}
+
+// OK
+int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord) {
+
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
+  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
+  int ptrPosition = floor((position/(REGISTERS_PER_BLOCK * PTR_PER_BLOCK)));
+  int normalizedPtrPosition = position - (ptrPosition * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
+  int newBlock;
+
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt read");
+    return FAILED;
+  }
+  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt getData");
+    return FAILED;
+  }
+
+  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
+  if (*((DWORD*)ptrBuffer) == 0) {
+    newBlock = getFreeBlock();
+    if (cleanBlock(newBlock) != SUCCEEDED) {
+      LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt clean the doubleInd block");
+      return FAILED;
+    }
+    setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
+    changeWriteBlock(doubleIndPtr, ptrPosition * sizeof(DWORD), (char*)&newBlock, sizeof(DWORD));
+    openDirectory.bytesFileSize += sizeof(DWORD);
+    openDirectory.blocksFileSize++;
+    strcpy(ptrBuffer,(char*)&newBlock);
+  }
+
+  // Escreve o registro dentro do bloco que está dentro do bloco do single.
+  if (singleIndWrite(*((DWORD*)ptrBuffer), normalizedPtrPosition, fileRecord) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt changeWrite");
+    return FAILED;
+  }
+  LGA_LOGGER_LOG("[doubleIndWrite] Sucess");
   return SUCCEEDED;
 }
 
@@ -1705,99 +1820,6 @@ int doubleIndInvalidate(DWORD doubleIndPtr, int pos) {
       setBitmap2(BLOCK_TYPE, *((DWORD*)ptrBuffer), BLOCK_FREE);
     }
   }
-  return SUCCEEDED;
-}
-
-int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
-  LGA_LOGGER_DEBUG("[doubleIndGetPos] Verify if singleInd exists");
-
-  if (*doubleIndPtr == INVALID_PTR) {
-    LGA_LOGGER_WARNING("[doubleIndGetPos] Allocating doubleInd");
-    *doubleIndPtr = getFreeBlock();
-    if (cleanBlock(*doubleIndPtr) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the doubleInd block");
-      return FAILED;
-    }
-    setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
-    openDirectory.blocksFileSize++;
-    return SINGLE_PTR + 1;
-  }
-
-  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)];
-  int try = 0, newNewBlock = 0;
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
-
-  LGA_LOGGER_DEBUG("[doubleIndGetPos] Reading Block");
-  if (readBlock(*doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt read");
-    return FAILED;
-  }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
-    LGA_LOGGER_DEBUG("[doubleIndGetPos] Getting Data");
-    if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt getData");
-      return FAILED;
-    }
-    LGA_LOGGER_DEBUG("[doubleIndGetPos] Searching for position");
-    if(*((DWORD*)ptrBuffer) != 0 && *((DWORD*)ptrBuffer) != INVALID_PTR) {
-
-      try = singleIndGetPos(((DWORD*)ptrBuffer), newBlock) - (SECOND_REG + 1);
-      if (try >= 0) try = try + (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
-
-    } else {
-      newNewBlock = getFreeBlock();
-      if (cleanBlock(newNewBlock) != SUCCEEDED) {
-        LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt clean the singleInd block");
-        return FAILED;
-      }
-      setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
-      changeWriteBlock(*doubleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
-      openDirectory.blocksFileSize++;
-      try = (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
-    }
-    if (try >= 0) return try + (SINGLE_PTR + 1);
-  }
-  return BLOCK_FULL;
-}
-
-int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord) {
-
-  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
-  int ptrPerBlock = (BLOCK_SIZE_BYTES/sizeof(DWORD));
-  int ptrPosition = floor((position/(REGISTERS_PER_BLOCK * PTR_PER_BLOCK)));
-  int normalizedPtrPosition = position - (ptrPosition * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
-  int newBlock;
-
-  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt read");
-    return FAILED;
-  }
-  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt getData");
-    return FAILED;
-  }
-
-  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
-  if (*((DWORD*)ptrBuffer) == 0) {
-    newBlock = getFreeBlock();
-    if (cleanBlock(newBlock) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt clean the doubleInd block");
-      return FAILED;
-    }
-    setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
-    changeWriteBlock(doubleIndPtr, ptrPosition * sizeof(DWORD), (char*)&newBlock, sizeof(DWORD));
-    openDirectory.blocksFileSize++;
-    strcpy(ptrBuffer,(char*)&newBlock);
-  }
-
-  // Escreve o registro dentro do bloco que está dentro do bloco do single.
-  if (singleIndWrite(*((DWORD*)ptrBuffer), normalizedPtrPosition, fileRecord) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[doubleIndWrite] Couldnt changeWrite");
-    return FAILED;
-  }
-
-  LGA_LOGGER_LOG("[doubleIndWrite] Sucess");
   return SUCCEEDED;
 }
 
@@ -1974,6 +1996,7 @@ int removeFileRecord_Simple(DWORD ptr, char* name) {
       		LGA_LOGGER_ERROR("[removeFileRecord_Simple] Couldnt changeWriteBlock");
       		return FAILED;
       	}
+        openDirectory.bytesFileSize -= (REGISTER_SIZE);
         return FOUND;
       }
     }
@@ -1996,7 +2019,7 @@ int _removeFileRecord_SingleInd(DWORD singleIndPtr, char* name) {
       return FAILED;
     }
 
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && *((DWORD*)ptrBuffer) != 0) {
       searchResult = removeFileRecord_Simple(*((DWORD*)ptrBuffer), name);
       if (searchResult != NOT_FOUND) {
         if (searchResult == FOUND) {
@@ -2016,23 +2039,23 @@ int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name) {
   int try = 0, newNewBlock = 0, searchResult;
 
   if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-    LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
+    LGA_LOGGER_ERROR("[_removeFileRecord_DoubleInd] Couldnt read");
     return FAILED;
   }
 
   for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
+      LGA_LOGGER_ERROR("[_removeFileRecord_DoubleInd] Couldnt getData");
       return FAILED;
     }
 
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO) {
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && *((DWORD*)ptrBuffer) != 0) {
       searchResult = _removeFileRecord_SingleInd(*((DWORD*)ptrBuffer), name);
       if (searchResult != NOT_FOUND) {
         if (searchResult == FOUND) {
           return FOUND;
         } else {
-          LGA_LOGGER_ERROR("[removeFileRecord] Couldnt remove the doubleIndPtr entry");
+          LGA_LOGGER_ERROR("[_removeFileRecord_DoubleInd] Couldnt remove the doubleIndPtr entry");
           return FAILED;
         }
       }
@@ -2092,12 +2115,14 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
  int result = 0;
  getInode(inodePos, inode);
 
-//TODO falta liberar bloco?
- if (((Inode*)inode)->dataPtr[0] != INVALID_PTR && fileRecordPtr == 0) {
+ if (((Inode*)inode)->dataPtr[1] != INVALID_PTR && fileRecordPtr == 0) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[0]);
    if (result == C_TRUE) {
      ((Inode*)inode)->dataPtr[0] = INVALID_PTR;
      openDirectory.blocksFileSize--;
+     openDirectory.bytesFileSize -= sizeof(DWORD);
+
+     return SUCCEEDED;
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2105,8 +2130,12 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
  } else if (((Inode*)inode)->dataPtr[1] != INVALID_PTR && fileRecordPtr == 1) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[1]);
    if (result == C_TRUE) {
+     setBitmap2(BLOCK_TYPE,((Inode*)inode)->dataPtr[1],BLOCK_FREE);
      ((Inode*)inode)->dataPtr[1] = INVALID_PTR;
      openDirectory.blocksFileSize--;
+     openDirectory.bytesFileSize -= sizeof(DWORD);
+     return SUCCEEDED;
+
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2114,8 +2143,12 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
  } else if (((Inode*)inode)->singleIndPtr != INVALID_PTR && fileRecordPtr == 2) {
    result = _isEmptyFile_SingleInd(((Inode*)inode)->singleIndPtr);
    if (result == C_TRUE) {
+     setBitmap2(BLOCK_TYPE,((Inode*)inode)->singleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->singleIndPtr = INVALID_PTR;
      openDirectory.blocksFileSize--;
+     openDirectory.bytesFileSize -= sizeof(DWORD);
+     return SUCCEEDED;
+
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2123,8 +2156,12 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
  } else if (((Inode*)inode)->doubleIndPtr != INVALID_PTR && fileRecordPtr == 3) {
    result = _isEmptyFile_DoubleInd(((Inode*)inode)->doubleIndPtr);
    if (result == C_TRUE) {
+     setBitmap2(BLOCK_TYPE,((Inode*)inode)->doubleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->doubleIndPtr = INVALID_PTR;
      openDirectory.blocksFileSize--;
+     openDirectory.bytesFileSize -= sizeof(DWORD);
+     return SUCCEEDED;
+
    } else if (result == FAILED) {
      LGA_LOGGER_ERROR("[garbageCollector] error");
      return FAILED;
@@ -2151,14 +2188,16 @@ int _isEmptyFile_SingleInd(DWORD singleIndPtr) {
       return FAILED;
     }
     // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
-    if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && *((DWORD*)ptrBuffer) != 0 ) {
       result = isEmptyFileRecord(*((DWORD*)ptrBuffer));
       if (result == C_TRUE) {
-        if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
+        if (changeWriteBlock(singleIndPtr, i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
           LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt changeWriteBlock");
           return FAILED;
         }
+        setBitmap2(BLOCK_TYPE,*((DWORD*)ptrBuffer),BLOCK_FREE);
         openDirectory.blocksFileSize--;
+        openDirectory.bytesFileSize -= sizeof(DWORD);
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt isEmptyFileRecord");
         return FAILED;
@@ -2191,14 +2230,16 @@ int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
       return FAILED;
     }
     // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
-    if(*((DWORD*)ptrBuffer) != INVALID_PTR) {
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && *((DWORD*)ptrBuffer) != 0 ) {
       result = _isEmptyFile_SingleInd(*((DWORD*)ptrBuffer));
       if (result == C_TRUE) {
-        if (changeWriteBlock(*((DWORD*)ptrBuffer), i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
+        if (changeWriteBlock(doubleIndPtr, i * sizeof(DWORD), (char*)&zero, sizeof(DWORD)) != SUCCEEDED) {
           LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt changeWriteBlock");
           return FAILED;
         }
+        setBitmap2(BLOCK_TYPE,*((DWORD*)ptrBuffer),BLOCK_FREE);
         openDirectory.blocksFileSize--;
+        openDirectory.bytesFileSize -= sizeof(DWORD);
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt isEmptyFileRecord");
         return FAILED;
@@ -2219,7 +2260,7 @@ void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode ){
   (isInode == 1) ? strcpy(tipo,"inode") : strcpy(tipo,"bloco");
 
   for (i = 0; i < MAXSIZE; i++) {
-    printf("%s: %d   %d= \n",tipo,i,getBitmap2(BITMAP_TYPE, i) );
+    printf("%s: %d   %d= ",tipo,i,getBitmap2(BITMAP_TYPE, i) );
   }
 }
 
@@ -2235,7 +2276,7 @@ void printQuantInode() {
       error++;
     }
   }
-  printf("\niNodes Livres: %d   iNodes Ocupados: %d  Error: %d\n", iFree, iBusy, error);
+  printf("iNodes Livres: %d   iNodes Ocupados: %d  Error: %d\n", iFree, iBusy, error);
 }
 
 void printQuantBlock() {
@@ -2251,7 +2292,7 @@ void printQuantBlock() {
       error++;
     }
   }
-  printf("\nBlocos Livres: %d   Blocos Ocupados: %d  Error: %d\n", blockFree, blockBusy,error);
+  printf("Blocos Livres: %d   Blocos Ocupados: %d  Error: %d\n", blockFree, blockBusy,error);
 }
 
 int writeOnPtr(DWORD ptr, int * CP, char * content, int size){
@@ -2579,5 +2620,72 @@ int cleanIndBlock(DWORD ptr){
     return FAILED;
   }
   LGA_LOGGER_DEBUG("[cleanIndBlock] SUCCEEDED");
+  return SUCCEEDED;
+}
+
+int getSpecificEntry_SingleInd(DWORD singleIndPtr, int entryNum, char* buffer) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
+  int ptrPosition = floor((entryNum/REGISTERS_PER_BLOCK));
+  int normalizedPtrPosition = entryNum - (ptrPosition * REGISTERS_PER_BLOCK);
+
+  if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_SingleInd] Couldnt read");
+    return FAILED;
+  }
+
+  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_SingleInd] Couldnt getData");
+    return FAILED;
+  }
+
+  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
+  if (*((DWORD*)ptrBuffer) == INVALID_PTR) {
+      LGA_LOGGER_ERROR("[getSpecificEntry_SingleInd] InvalidPTR");
+      return FAILED;
+  }
+
+  if (readBlock(*((DWORD*)ptrBuffer),tempBlockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_SingleInd] Couldnt read temp");
+    return FAILED;
+  }
+
+  if (getRegisterFile(normalizedPtrPosition, tempBlockBuffer, BLOCK_SIZE_BYTES, buffer) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_SingleInd] Couldnt changeWrite");
+    return FAILED;
+  }
+  if (((FileRecord*)buffer)->TypeVal == TYPEVAL_INVALIDO) {
+    ((FileRecord*)buffer)->TypeVal = 5; //HACK
+    LGA_LOGGER_WARNING("[getSpecificEntry_SingleInd] Record Invalid");
+    return FAILED;
+  }
+  LGA_LOGGER_LOG("[getSpecificEntry_SingleInd] Sucess");
+  return SUCCEEDED;
+}
+
+int getSpecificEntry_DoubleInd(DWORD doubleIndPtr, int entryNum, char* buffer) {
+  char blockBuffer[BLOCK_SIZE_BYTES], ptrBuffer[sizeof(DWORD)], tempBlockBuffer[BLOCK_SIZE_BYTES];
+  int ptrPosition = floor((entryNum/(REGISTERS_PER_BLOCK * PTR_PER_BLOCK)));
+  int normalizedPtrPosition = entryNum - (ptrPosition * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
+
+  if (readBlock(doubleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_DoubleInd] Couldnt read");
+    return FAILED;
+  }
+
+  if (getDataFromDisk(ptrBuffer, ptrPosition*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_DoubleInd] Couldnt getData");
+    return FAILED;
+  }
+
+  // Se não existe o endereço do bloco desejado dentro do Single, cria ele
+  if (*((DWORD*)ptrBuffer) == INVALID_PTR) {
+      LGA_LOGGER_ERROR("[getSpecificEntry_DoubleInd] InvalidPTR");
+      return FAILED;
+  }
+
+  if (getSpecificEntry_SingleInd(*((DWORD*)ptrBuffer),normalizedPtrPosition, buffer) != SUCCEEDED) {
+    LGA_LOGGER_ERROR("[getSpecificEntry_DoubleInd] getSpecificEntry_SingleInd");
+    return FAILED;
+  }
   return SUCCEEDED;
 }

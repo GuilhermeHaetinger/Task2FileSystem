@@ -101,7 +101,7 @@ FILE2 create2 (char *filename){
 	FileRecord file;
 	LGA_LOGGER_DEBUG("[create2] Creating FileRecord");
 	if(createRecord(pathList[words-1], TYPEVAL_REGULAR, &file) != SUCCEEDED){
-		LGA_LOGGER_ERROR("[create2] Couldnt create file");
+		LGA_LOGGER_WARNING("[create2] Couldnt create file");
     getInode(currentInodeNumber, (char * )&openDirectory);
     openDirectoryFileRecord = currentDirectoryFileRecord;
     freeList(&pathList,  words);
@@ -204,6 +204,7 @@ int delete2 (char *filename){
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       freeList(&pathList,  words);
+      LGA_LOGGER_ERROR("[delete2] getFileInode");
       return FAILED;
     }
 
@@ -231,7 +232,7 @@ int delete2 (char *filename){
       return FAILED;
     }
     if (garbageCollector(openDirectoryFileRecord.inodeNumber, fileRecordPtr) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      LGA_LOGGER_ERROR("[delete2] garbageCollector");
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       return FAILED;
@@ -495,11 +496,6 @@ int seek2 (FILE2 handle, DWORD offset){
 		LGA_LOGGER_ERROR("[seek2] Not able to get file's inode");
 		return FAILED;
 	}
-	/*if(offset < -1){
-    printf("%d", -offset);
-		LGA_LOGGER_ERROR("[seek2] Can't seek to a negative integer < -1");
-		return FAILED;
-	}*/
 	if(fileInode.bytesFileSize < offset){
 		LGA_LOGGER_ERROR("[seek2] offset not in file");
 		return FAILED;
@@ -629,12 +625,12 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 -----------------------------------------------------------------------------*/
 int rmdir2 (char *pathname){
     ///TODO
-    LGA_LOGGER_DEBUG("[Entering delete2]");
+    LGA_LOGGER_DEBUG("[Entering rmdir2]");
     if(initializeSuperBlock() != 0){
-  		LGA_LOGGER_ERROR("[delete2] SuperBlock not properly initiated");
+  		LGA_LOGGER_ERROR("[rmdir2] SuperBlock not properly initiated");
   		return FAILED;
   	}
-    LGA_LOGGER_DEBUG("[delete2] SuperBlock initialized");
+    LGA_LOGGER_DEBUG("[rmdir2] SuperBlock initialized");
     FileRecord record;
     int recordPosition, accessedPtr;
 
@@ -692,19 +688,13 @@ int rmdir2 (char *pathname){
 
     //TODO ESSA PORRA ERA MT NECESSARIA
     //CASO DIR N ESTEJA VAZIO E TENHA APENAS ./ E ../
-    if (((Inode*)inode)->bytesFileSize > REGISTER_SIZE * 2) {
+    if (((Inode*)inode)->bytesFileSize > REGISTER_SIZE * 2 + + sizeof(DWORD)) {
       LGA_LOGGER_WARNING("[rmdir2] Unable to delete directory: there are files in there");
-      printAllEntries(openDirectory);
-      printf("bytesFileSize = %d \n", ((Inode*)inode)->bytesFileSize );
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       freeList(&pathList,  words);
       return FAILED;
     }
-    printf("eu\n" );
-    printAllEntries(openDirectory);
-    printf("bytesSizeOpenDirectory = %d\n", ((Inode*)inode)->bytesFileSize );
-    //
 
 
     //TODO
@@ -719,7 +709,7 @@ int rmdir2 (char *pathname){
     record.TypeVal = TYPEVAL_INVALIDO;
 
     if(removeFileRecord(openDirectoryFileRecord.inodeNumber, pathList[words-1], &fileRecordPtr) != SUCCEEDED){
-  		LGA_LOGGER_ERROR("[delete2] Record not saved properly on its block");
+  		LGA_LOGGER_ERROR("[rmdir2] Record not saved properly on its block");
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       freeList(&pathList,  words);
@@ -738,14 +728,14 @@ int rmdir2 (char *pathname){
       return FAILED;
     }
     if (garbageCollector(openDirectoryFileRecord.inodeNumber, fileRecordPtr) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[delete2] Couldnt remove inode");
+      LGA_LOGGER_ERROR("[rmdir2] Couldnt remove inode");
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       return FAILED;
     }
 
     if (setInode(openDirectoryFileRecord.inodeNumber, (char*)&openDirectory) != SUCCEEDED) {
-      LGA_LOGGER_ERROR("[delete2] Couldnt set inode");
+      LGA_LOGGER_ERROR("[rmdir2] Couldnt set inode");
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       return FAILED;
@@ -963,7 +953,7 @@ Sa�da:	Se a opera��o foi realizada com sucesso, a fun��o retorna "0" (
 -----------------------------------------------------------------------------*/
 int readdir2 (DIR2 handle, DIRENT2 *dentry){
 	LGA_LOGGER_DEBUG("entering readdir2");
-    int num_of_entries = openDirectories[handle].dir.blocksFileSize * superBlock.blockSize / REGISTERS_PER_SECTOR;
+    int num_of_entries = openDirectories[handle].dir.blocksFileSize * REGISTERS_PER_BLOCK;
 	if(openDirectories[handle].entry == num_of_entries - 1){
 		LGA_LOGGER_ERROR("[readdir2] Directory has run out of entries");
 		return FAILED;
@@ -973,6 +963,10 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
 	Inode inodeDetails;
 
 	if(getSpecificEntry(openDirectories[handle].dir, openDirectories[handle].entry,(char*)&entryDetails) != SUCCEEDED){
+    if (entryDetails.TypeVal == 5) {  // Se for um tipo invalido, incrementa o ENTRY para continuar
+      openDirectories[handle].entry++;
+      return FAILED;
+    }
 		LGA_LOGGER_ERROR("[readdir2] Failed to read entry");
 		return FAILED;
 	}
