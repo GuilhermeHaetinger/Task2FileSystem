@@ -168,12 +168,14 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
   fileInode.dataPtr[0] = sectorPos;
-  fileInode.bytesFileSize = REGISTER_SIZE * 2 + sizeof(DWORD);
 
 	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("[createDirectoryInode] Inode not saved properly");
 		return FAILED;
 	}
+
+  fileInode.bytesFileSize +=  REGISTER_SIZE * 2 + sizeof(DWORD);
+  fileInode.blocksFileSize = 1;
   return SUCCEEDED;
 }
 
@@ -191,7 +193,7 @@ int getRegisterFile(int registerNumber, char* diskBuffer, int diskBufferSize, ch
 
 FILE2 addFileToOpenFiles(FileRecord file){
   if(openFilesHandler >= MAX_NUM_OF_OPEN_FILES){
-    LGA_LOGGER_IMPORTANT("File won't be added to vector since it's full");
+    LGA_LOGGER_WARNING("File won't be added to vector since it's full");
     return FAILED;
   }
 
@@ -311,8 +313,8 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
       return FAILED;
     }
     setBitmap2(BLOCK_TYPE, *ptr , BLOCK_BUSY);
-    openDirectory.blocksFileSize++;
-    openDirectory.bytesFileSize+= sizeof(DWORD);
+    openDirectory.blocksFileSize += 1;
+    openDirectory.bytesFileSize += sizeof(DWORD);
 
     *newBlock = 1;
   }
@@ -413,6 +415,7 @@ int writeFilePositionInInode(Inode inode, char *fileRecord, int position) {
       LGA_LOGGER_ERROR("[writeFilePositionInInode] Fail dataPtr0");
       return FAILED;
     }
+
     openDirectory.bytesFileSize += REGISTER_SIZE;
     LGA_LOGGER_LOG("[writeFilePositionInInode] Success dataptr0");
     return SUCCEEDED;
@@ -506,7 +509,6 @@ int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
   //CP In dataPtr[0]
   if(CP <= BLOCK_SIZE_BYTES){
     LGA_LOGGER_DEBUG("INVALIDATING FROM PTR[0]");
-    fileInode->bytesFileSize = CP;
     if(fileInode->dataPtr[1] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode->dataPtr[1], 0);
     fileInode->dataPtr[1] = INVALID_PTR;
     if(fileInode->singleIndPtr != INVALID_PTR){
@@ -524,7 +526,6 @@ int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
   //CP In dataPtr[1]
   if(CP <= 2 * BLOCK_SIZE_BYTES){
     LGA_LOGGER_DEBUG("INVALIDATING FROM PTR[1]");
-    fileInode->bytesFileSize = CP;
     if(fileInode->singleIndPtr != INVALID_PTR){
       setBitmap2(BLOCK_TYPE, fileInode->singleIndPtr, 0);
       singleIndInvalidate(fileInode->singleIndPtr, CPBlock, (BLOCK_SIZE_BYTES * 2)/BLOCK_SIZE_BYTES);
@@ -918,7 +919,7 @@ int removeDirFromOpenDirs(DIR2 handler){
     closedHandler.entry = -1;
     openDirectories[handler] = closedHandler;
 
-    openFilesHandler--;
+    openDirectoriesHandler--;
     LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
     return SUCCEEDED;
 
@@ -1275,6 +1276,8 @@ FILE2 findProperPositionOnOpenFiles(){
       return pos;
     }
   }
+  printf("openfilehandler>>> %d\n\n\n", openFilesHandler);
+  LGA_LOGGER_ERROR("couldnt find proper position");
   return FAILED;
 }
 
@@ -1517,8 +1520,8 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
       return FAILED;
     }
     setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
-    openDirectory.blocksFileSize++;
-    openDirectory.bytesFileSize+= sizeof(DWORD);
+    openDirectory.blocksFileSize += 1;
+    openDirectory.bytesFileSize += sizeof(DWORD);
     return SECOND_REG + 1;
   }
 
@@ -1552,9 +1555,9 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
         return FAILED;
       }
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
-      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
-      openDirectory.blocksFileSize++;
-      openDirectory.bytesFileSize+= sizeof(DWORD);
+      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD)); 
+      openDirectory.blocksFileSize += 1;
+      openDirectory.bytesFileSize += sizeof(DWORD);
       try = i * REGISTERS_PER_BLOCK;
     }
     if (try >= 0) return try + (SECOND_REG + 1);
@@ -1590,7 +1593,7 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
     }
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(singleIndPtr, ptrPosition, (char*)&newBlock, sizeof(DWORD));
-    openDirectory.blocksFileSize++;
+    openDirectory.blocksFileSize += 1;
     openDirectory.bytesFileSize += sizeof(DWORD);
     strcpy(ptrBuffer,(char*)&newBlock);
   }
@@ -1600,7 +1603,7 @@ int singleIndWrite(DWORD singleIndPtr, int position, char * fileRecord) {
     LGA_LOGGER_ERROR("[singleIndWrite] Couldnt changeWrite");
     return FAILED;
   }
-  openDirectory.bytesFileSize += REGISTER_SIZE;
+    openDirectory.bytesFileSize += REGISTER_SIZE;
   LGA_LOGGER_LOG("[singleIndWrite] Sucess");
   return SUCCEEDED;
 }
@@ -1617,8 +1620,8 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
       return FAILED;
     }
     setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
-    openDirectory.blocksFileSize++;
-    openDirectory.bytesFileSize+= sizeof(DWORD);
+    openDirectory.blocksFileSize += 1;
+    openDirectory.bytesFileSize += sizeof(DWORD);
     return SINGLE_PTR + 1;
   }
 
@@ -1652,8 +1655,8 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
       }
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
       changeWriteBlock(*doubleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
-      openDirectory.blocksFileSize++;
-      openDirectory.bytesFileSize+= sizeof(DWORD);
+      openDirectory.blocksFileSize += 1;
+      openDirectory.bytesFileSize += sizeof(DWORD);
       try = (i * REGISTERS_PER_BLOCK * PTR_PER_BLOCK);
     }
     if (try >= 0) return try + (SINGLE_PTR + 1);
@@ -1688,8 +1691,8 @@ int doubleIndWrite(DWORD doubleIndPtr, int position, char * fileRecord) {
     }
     setBitmap2(BLOCK_TYPE,newBlock, BLOCK_BUSY);
     changeWriteBlock(doubleIndPtr, ptrPosition * sizeof(DWORD), (char*)&newBlock, sizeof(DWORD));
+    openDirectory.blocksFileSize += 1;
     openDirectory.bytesFileSize += sizeof(DWORD);
-    openDirectory.blocksFileSize++;
     strcpy(ptrBuffer,(char*)&newBlock);
   }
 
@@ -1996,7 +1999,7 @@ int removeFileRecord_Simple(DWORD ptr, char* name) {
       		LGA_LOGGER_ERROR("[removeFileRecord_Simple] Couldnt changeWriteBlock");
       		return FAILED;
       	}
-        openDirectory.bytesFileSize -= (REGISTER_SIZE);
+        openDirectory.bytesFileSize -= REGISTER_SIZE;
         return FOUND;
       }
     }
@@ -2119,8 +2122,8 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    result = isEmptyFileRecord(((Inode*)inode)->dataPtr[0]);
    if (result == C_TRUE) {
      ((Inode*)inode)->dataPtr[0] = INVALID_PTR;
-     openDirectory.blocksFileSize--;
-     openDirectory.bytesFileSize -= sizeof(DWORD);
+    openDirectory.blocksFileSize -= 1;
+    openDirectory.bytesFileSize -= sizeof(DWORD);
 
      return SUCCEEDED;
    } else if (result == FAILED) {
@@ -2132,8 +2135,8 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    if (result == C_TRUE) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->dataPtr[1],BLOCK_FREE);
      ((Inode*)inode)->dataPtr[1] = INVALID_PTR;
-     openDirectory.blocksFileSize--;
-     openDirectory.bytesFileSize -= sizeof(DWORD);
+    openDirectory.blocksFileSize -= 1;
+    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
@@ -2145,8 +2148,8 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    if (result == C_TRUE) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->singleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->singleIndPtr = INVALID_PTR;
-     openDirectory.blocksFileSize--;
-     openDirectory.bytesFileSize -= sizeof(DWORD);
+    openDirectory.blocksFileSize -= 1;
+    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
@@ -2158,8 +2161,8 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    if (result == C_TRUE) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->doubleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->doubleIndPtr = INVALID_PTR;
-     openDirectory.blocksFileSize--;
-     openDirectory.bytesFileSize -= sizeof(DWORD);
+    openDirectory.blocksFileSize -= 1;
+    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
@@ -2196,8 +2199,8 @@ int _isEmptyFile_SingleInd(DWORD singleIndPtr) {
           return FAILED;
         }
         setBitmap2(BLOCK_TYPE,*((DWORD*)ptrBuffer),BLOCK_FREE);
-        openDirectory.blocksFileSize--;
-        openDirectory.bytesFileSize -= sizeof(DWORD);
+    openDirectory.blocksFileSize -= 1;
+    openDirectory.bytesFileSize -= sizeof(DWORD);
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt isEmptyFileRecord");
         return FAILED;
@@ -2238,7 +2241,7 @@ int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
           return FAILED;
         }
         setBitmap2(BLOCK_TYPE,*((DWORD*)ptrBuffer),BLOCK_FREE);
-        openDirectory.blocksFileSize--;
+        openDirectory.blocksFileSize -= 1;
         openDirectory.bytesFileSize -= sizeof(DWORD);
       } else if (result == FAILED) {
         LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt isEmptyFileRecord");
