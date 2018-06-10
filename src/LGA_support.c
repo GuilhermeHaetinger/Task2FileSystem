@@ -475,7 +475,7 @@ int getSpecificEntry(Inode dir, int entryNum, char* buffer){
 int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
   float  CPLocation = CP / (BLOCK_SIZE_BYTES);
   float CPBlock = floor(CP / BLOCK_SIZE_BYTES);
-  
+
   if(CP == 0){
     LGA_LOGGER_DEBUG("INVALIDATING FROM CP = 0");
     if(fileInode->dataPtr[0] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode->dataPtr[0], 0);
@@ -495,7 +495,7 @@ int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
     return SUCCEEDED;
   }
   //CP In dataPtr[0]
-  if(CP < BLOCK_SIZE_BYTES){
+  if(CP <= BLOCK_SIZE_BYTES){
     LGA_LOGGER_DEBUG("INVALIDATING FROM PTR[0]");
     fileInode->bytesFileSize = CP;
     if(fileInode->dataPtr[1] != INVALID_PTR) setBitmap2(BLOCK_TYPE, fileInode->dataPtr[1], 0);
@@ -513,7 +513,7 @@ int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
     return SUCCEEDED;
   }
   //CP In dataPtr[1]
-  if(CP < 2 * BLOCK_SIZE_BYTES){
+  if(CP <= 2 * BLOCK_SIZE_BYTES){
     LGA_LOGGER_DEBUG("INVALIDATING FROM PTR[1]");
     fileInode->bytesFileSize = CP;
     if(fileInode->singleIndPtr != INVALID_PTR){
@@ -528,7 +528,7 @@ int invalidateFromCPOn(DWORD CP, Inode  *fileInode){
     fileInode->doubleIndPtr = INVALID_PTR;
     return SUCCEEDED;
   }
-  if(CP < 2 * BLOCK_SIZE_BYTES + PTR_PER_BLOCK*BLOCK_SIZE_BYTES){
+  if(CP <= 2 * BLOCK_SIZE_BYTES + PTR_PER_BLOCK*BLOCK_SIZE_BYTES){
     LGA_LOGGER_DEBUG("INVALIDATING FROM SINGLE IND");
     fileInode->bytesFileSize = CP;
     if(fileInode->singleIndPtr != INVALID_PTR){
@@ -1488,7 +1488,7 @@ int readFileBlocks(Inode fileInode, int CP, char * buffer, int contentSize){
       }*/
       return FAILED;
     }
-  
+
   }
   return contentSize;
 }
@@ -1654,7 +1654,6 @@ int singleIndInvalidate(DWORD singleIndPtr, int pos, int offset) {
   if (singleIndPtr == INVALID_PTR) {
     return SUCCEEDED;
   }
-
   // Coloca o bloco de indireção no buffer
   if (readBlock(singleIndPtr,blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
     LGA_LOGGER_ERROR("[singleIndPrint] Couldnt read");
@@ -1668,9 +1667,9 @@ int singleIndInvalidate(DWORD singleIndPtr, int pos, int offset) {
       return FAILED;
     }
     // Faz alguma coisa com o ponteiro de bloco (já está apontando para um bloco de dados aqui)
-    if(*((DWORD*)ptrBuffer) != INVALID_PTR && i + offset> pos) {
-      *((DWORD*)ptrBuffer) = TYPEVAL_INVALIDO;
+    if(*((DWORD*)ptrBuffer) != INVALID_PTR && i + offset >= pos) {
       setBitmap2(BLOCK_TYPE, *((DWORD*)ptrBuffer), BLOCK_FREE);
+      *((DWORD*)ptrBuffer) = TYPEVAL_INVALIDO;
     }
   }
   return SUCCEEDED;
@@ -1701,7 +1700,7 @@ int doubleIndInvalidate(DWORD doubleIndPtr, int pos) {
     // Faz alguma coisa com o ponteiro de INDIREÇÃO (aqui não é bloco de dados ainda)
     // Por isso que sempre faço 2 funções, single e Double, por aqui posso chamar
     // a single e ela faz o resto.
-    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO && 2*BLOCK_SIZE_BYTES + PTR_PER_BLOCK * BLOCK_SIZE_BYTES + (i * PTR_PER_BLOCK * BLOCK_SIZE_BYTES) > pos) {
+    if(*((DWORD*)ptrBuffer) != TYPEVAL_INVALIDO && 2*BLOCK_SIZE_BYTES + PTR_PER_BLOCK * BLOCK_SIZE_BYTES + (i * PTR_PER_BLOCK * BLOCK_SIZE_BYTES) >= pos) {
       singleIndInvalidate(*((DWORD*)ptrBuffer), pos, floor((2*BLOCK_SIZE_BYTES + PTR_PER_BLOCK * BLOCK_SIZE_BYTES + (i * PTR_PER_BLOCK * BLOCK_SIZE_BYTES))/BLOCK_SIZE_BYTES));
       setBitmap2(BLOCK_TYPE, *((DWORD*)ptrBuffer), BLOCK_FREE);
     }
@@ -2222,11 +2221,37 @@ void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode ){
   for (i = 0; i < MAXSIZE; i++) {
     printf("%s: %d   %d= \n",tipo,i,getBitmap2(BITMAP_TYPE, i) );
   }
+}
 
-// setBitmap2(INODE_TYPE, ROOT_INODE, INODE_BUSY);
-// setBitmap2(BLOCK_TYPE,openDirectory.dataPtr[accessedPtr],1);
+void printQuantInode() {
+  int maxInodes = superBlock.freeInodeBitmapSize * BLOCK_SIZE_BYTES;
+  int iFree=0, iBusy=0, error=0;
+  for(int i = 0; i < maxInodes; i++) {
+    if (getBitmap2(INODE_TYPE, i) == INODE_FREE) {
+      iFree++;
+    } else if (getBitmap2(INODE_TYPE, i) == INODE_BUSY) {
+      iBusy++;
+    } else {
+      error++;
+    }
+  }
+  printf("\niNodes Livres: %d   iNodes Ocupados: %d  Error: %d\n", iFree, iBusy, error);
+}
 
+void printQuantBlock() {
+  int maxBlocks = superBlock.freeBlocksBitmapSize * BLOCK_SIZE_BYTES;
+  int blockFree=0, blockBusy=0, error=0;
 
+  for(int i = 0; i < maxBlocks; i++) {
+    if (getBitmap2(BLOCK_TYPE, i) == BLOCK_FREE) {
+      blockFree++;
+    } else if (getBitmap2(BLOCK_TYPE, i) == BLOCK_BUSY) {
+      blockBusy++;
+    } else {
+      error++;
+    }
+  }
+  printf("\nBlocos Livres: %d   Blocos Ocupados: %d  Error: %d\n", blockFree, blockBusy,error);
 }
 
 int writeOnPtr(DWORD ptr, int * CP, char * content, int size){
@@ -2243,7 +2268,7 @@ int writeOnPtr(DWORD ptr, int * CP, char * content, int size){
   for(i = 0; i < BLOCK_SIZE_BYTES; i++){
     if(i >= CPPos && i < CPPos + size){
       blockBuffer[i] = content[i - CPPos];
-      cpBuf ++; 
+      cpBuf ++;
     }
   }
   if(writeBlock(ptr, (char *)&blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED){
@@ -2279,7 +2304,7 @@ int writeOnIndirection_single(DWORD ptr, int * CP, char * content, int size){
         for(j = 0; j < sizeof(DWORD); j++){
           indirectionBlock[j + i*sizeof(DWORD)] = ptrBuffer[j];
         }
-        writeBlock(ptr, indirectionBlock, BLOCK_SIZE_BYTES);  
+        writeBlock(ptr, indirectionBlock, BLOCK_SIZE_BYTES);
       }
       writeOnPtr(*((DWORD*)ptrBuffer), CP, content, size);
     }
@@ -2357,7 +2382,7 @@ int writeContentOnDisk(Inode * fileInode, int *CP, char * content, int size){
         LGA_LOGGER_ERROR("[writeContentOnDisk] failed to write on ptr[1]");
         return FAILED;
       }
-    }else if(*CP < BLOCK_SIZE_BYTES * PTR_PER_BLOCK + 2 * BLOCK_SIZE_BYTES){  
+    }else if(*CP < BLOCK_SIZE_BYTES * PTR_PER_BLOCK + 2 * BLOCK_SIZE_BYTES){
       LGA_LOGGER_DEBUG("[getByteBlockPositioning] Writing on SingleInd");
       //byte on singleInd
       if(fileInode->singleIndPtr == INVALID_PTR){
@@ -2416,7 +2441,7 @@ int readOnPtr(DWORD ptr, int * CP, char * content, int size){
   for(i = 0; i < BLOCK_SIZE_BYTES; i++){
     if(i >= CPPos && i < CPPos + size){
       content[CPPosBlock * BLOCK_SIZE_BYTES + i - CPPos] = blockBuffer[i];
-      cpBuf ++; 
+      cpBuf ++;
     }
   }
 
@@ -2441,7 +2466,7 @@ int readOnIndirection_single(DWORD ptr, int * CP, char * content, int size){
         return BLOCK_FULL;
       }
       readOnPtr(*((DWORD*)ptrBuffer), CP, content, size);
-      
+
     }
     else{
 
@@ -2483,7 +2508,7 @@ int readContentOnDisk(Inode * fileInode, int *CP, char * content, int size){
     size = fileInode->bytesFileSize;
   }
   while(*CP - initialCP < size){
-    
+
     //byte In dataPtr[0]
     if(*CP < BLOCK_SIZE_BYTES){
       LGA_LOGGER_DEBUG("[readContentOnDisk] reading on dataptr[0]");
@@ -2506,13 +2531,13 @@ int readContentOnDisk(Inode * fileInode, int *CP, char * content, int size){
         return FAILED;
       }
       LGA_LOGGER_DEBUG("[readContentOnDisk] Read ptr[1]");
-    }else if(*CP < BLOCK_SIZE_BYTES * PTR_PER_BLOCK + 2 * BLOCK_SIZE_BYTES){  
+    }else if(*CP < BLOCK_SIZE_BYTES * PTR_PER_BLOCK + 2 * BLOCK_SIZE_BYTES){
       LGA_LOGGER_DEBUG("[readContentOnDisk] reading on SingleInd");
       //byte on singleInd
       if(fileInode->singleIndPtr == INVALID_PTR){
         break;
       }
-      int read = readOnIndirection_single(fileInode->singleIndPtr, CP, content, size); 
+      int read = readOnIndirection_single(fileInode->singleIndPtr, CP, content, size);
       if(read != SUCCEEDED){
         if(read == BLOCK_FULL){
           break;

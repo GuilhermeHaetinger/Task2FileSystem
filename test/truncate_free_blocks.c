@@ -9,21 +9,26 @@ int main(){
 
     initializeSuperBlock();
     int a;
-
+    printQuantBlock();
+    printQuantInode();
     char textToWrite[2 * BLOCK_SIZE_BYTES +  (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES];
     int i;
     for(i = 0; i < 2 * BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES; i++){
         textToWrite[i] = 'G';
     }
     LGA_LOGGER_TEST("/ directory");
-    printAllEntries(openDirectory);
-    printBitmap(BLOCK_TYPE, 3000, 1 );
+
+    printQuantBlock();
+    printQuantInode();
 
     LGA_LOGGER_TEST("Prestes a criar arquivo");
-    scanf(" %d\n", &a );
+
     create2("indTest.txt");
     FILE2 openFile2 = open2("indTest.txt");
-    printBitmap(BLOCK_TYPE, 3000, 1 );
+
+    printQuantBlock();
+    printQuantInode();
+    
     LGA_LOGGER_TEST("after creating file");
     write2(openFile2, textToWrite, 2* BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES);
     openFile2 = open2("indTest.txt");
@@ -35,17 +40,16 @@ int main(){
         return FAILED;
     }
 
-    scanf(" %d\n", &a );
-    printBitmap(BLOCK_TYPE, 3000, 1 );
-    LGA_LOGGER_TEST("after filling file");
+    printQuantBlock();
+    printQuantInode();    LGA_LOGGER_TEST("after filling file");
     for(i = 0; i < 2 /** BLOCK_SIZE_BYTES + (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES*/; i++){
         printf("%c", buffer[i]);
     }
     printf("\n" );
-
-    scanf(" %d\n", &a );
+    seek2(openFile2, 0);
     printf("truncate = %d \n", truncate2(openFile2));
-    printBitmap(BLOCK_TYPE, 3000, 1 );
+    printQuantBlock();
+    printQuantInode();
     LGA_LOGGER_TEST("after truncating file");
 
 

@@ -688,3 +688,7 @@ int readOnIndirection_single(DWORD ptr, int * CP, char * content, int size);
 int readOnIndirection_double(DWORD ptr, int * CP, char * content, int size);
 int readContentOnDisk(Inode * fileInode, int *CP, char * content, int size);
 int cleanIndBlock(DWORD ptr);
+
+void printQuantBlock();
+
+void printQuantInode();
