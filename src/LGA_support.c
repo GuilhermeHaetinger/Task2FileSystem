@@ -168,14 +168,15 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
   fileInode.dataPtr[0] = sectorPos;
+  fileInode.bytesFileSize +=  REGISTER_SIZE * 2 + sizeof(DWORD);
+  fileInode.blocksFileSize = 1;
 
 	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
 		LGA_LOGGER_ERROR("[createDirectoryInode] Inode not saved properly");
 		return FAILED;
 	}
 
-  fileInode.bytesFileSize +=  REGISTER_SIZE * 2 + sizeof(DWORD);
-  fileInode.blocksFileSize = 1;
+
   return SUCCEEDED;
 }
 

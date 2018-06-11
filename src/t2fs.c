@@ -712,7 +712,7 @@ int rmdir2 (char *pathname){
 
     //TODO ESSA PORRA ERA MT NECESSARIA
     //CASO DIR N ESTEJA VAZIO E TENHA APENAS ./ E ../
-    if (((Inode*)inode)->bytesFileSize > REGISTER_SIZE * 2 + + sizeof(DWORD)) {
+    if (((Inode*)inode)->bytesFileSize > REGISTER_SIZE * 2 + sizeof(DWORD)) {
       LGA_LOGGER_WARNING("[rmdir2] Unable to delete directory: there are files in there");
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
