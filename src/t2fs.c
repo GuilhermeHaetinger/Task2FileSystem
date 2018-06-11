@@ -208,6 +208,14 @@ int delete2 (char *filename){
       return FAILED;
     }
 
+    //Caso tente se dar rmdir pra arquivo
+    if (record.TypeVal != TYPEVAL_REGULAR) {
+      getInode(currentInodeNumber, (char * )&openDirectory);
+      printf("%s\n","arquivo NAO!" );
+      openDirectoryFileRecord = currentDirectoryFileRecord;
+      return FAILED;
+    }
+
     char inode[INODE_SIZE];
     int fileRecordPtr = 0;
     getInode(record.inodeNumber, inode);
@@ -421,7 +429,7 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna o nï¿
 	Em caso de erro, serï¿½ retornado um valor negativo.
 -----------------------------------------------------------------------------*/
 int write2 (FILE2 handle, char *buffer, int size){
-  
+
   LGA_LOGGER_DEBUG("Entering write2");
 	int CP = openFiles[handle].CP;
 	if(initializeSuperBlock() != 0){
@@ -680,6 +688,13 @@ int rmdir2 (char *pathname){
       //Nao precisa ler a primeira string parseada pois era / e jÃ¡ a atratamos
       startingDir = 1;
     }
+    //Caso tente deletar . ou ..
+    else if (strcmp(pathList[words-1],".") == 0 || strcmp(pathList[words-1],"..") == 0 ) {
+      getInode(currentInodeNumber, (char * )&openDirectory);
+      openDirectoryFileRecord = currentDirectoryFileRecord;
+      freeList(&pathList,  words);
+      return FAILED;
+    }
 
     //Percorre toda o vetor de strings parseado do pathname e tentando entrar no diretorio atual
     LGA_LOGGER_LOG("[chdir2] Comeca pelo diretorio atual o pathname");
@@ -700,6 +715,14 @@ int rmdir2 (char *pathname){
     //Procura pelo filename passado.
     //Recupera junto seu record, a sua position e em qual ponteiro do openDirectory foi encontrado
     if (getFileInode(pathList[words-1], openDirectory, &record, &recordPosition, &accessedPtr) == NOT_FOUND) {
+      getInode(currentInodeNumber, (char * )&openDirectory);
+      openDirectoryFileRecord = currentDirectoryFileRecord;
+      freeList(&pathList,  words);
+      return FAILED;
+    }
+
+    //Caso tente se dar rmdir pra arquivo
+    if (record.TypeVal != TYPEVAL_DIRETORIO) {
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       freeList(&pathList,  words);
