@@ -992,12 +992,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
 
 	FileRecord entryDetails;
 	Inode inodeDetails;
-
 	if(getSpecificEntry(openDirectories[handle].dir, openDirectories[handle].entry,(char*)&entryDetails) != SUCCEEDED){
-    if (entryDetails.TypeVal == 5) {  // Se for um tipo invalido, incrementa o ENTRY para continuar
-      openDirectories[handle].entry++;
-      return FAILED;
-    }
 		LGA_LOGGER_ERROR("[readdir2] Failed to read entry");
 		return FAILED;
 	}

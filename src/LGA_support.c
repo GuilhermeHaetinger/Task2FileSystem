@@ -2657,7 +2657,6 @@ int getSpecificEntry_SingleInd(DWORD singleIndPtr, int entryNum, char* buffer) {
     return FAILED;
   }
   if (((FileRecord*)buffer)->TypeVal == TYPEVAL_INVALIDO) {
-    ((FileRecord*)buffer)->TypeVal = 5; //HACK
     LGA_LOGGER_WARNING("[getSpecificEntry_SingleInd] Record Invalid");
     return FAILED;
   }
