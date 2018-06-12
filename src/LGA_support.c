@@ -326,7 +326,8 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
   readBlock(*ptr, blockBuffer, BLOCK_SIZE_BYTES);
 
   //Procura pelos registro de diretorios 1 a 1 no bloco em busca de um disponivel
-  for (int position = 0; position < BLOCK_SIZE_BYTES/REGISTER_SIZE; position++) {
+  int position = 0;
+  for (position = 0; position < BLOCK_SIZE_BYTES/REGISTER_SIZE; position++) {
     if (getRegisterFile(position, blockBuffer, BLOCK_SIZE_BYTES, registerBuffer) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[searchNewFileRecordPosition] Couldnt get the register");
       return FAILED;
@@ -350,9 +351,9 @@ int _searchNewFileRecordPosition(DWORD ptr,int *newBlock) {
 
   //Le o bloco apontado pelo ptr
   readBlock(ptr, blockBuffer, BLOCK_SIZE_BYTES);
-
+  int position = 0;
   //Procura pelos registro de diretorios 1 a 1 no bloco em busca de um disponivel
-  for (int position = 0; position < BLOCK_SIZE_BYTES/REGISTER_SIZE; position++) {
+  for (position = 0; position < BLOCK_SIZE_BYTES/REGISTER_SIZE; position++) {
     if (getRegisterFile(position, blockBuffer, BLOCK_SIZE_BYTES, registerBuffer) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_searchNewFileRecordPosition] Couldnt get the register");
       return FAILED;
@@ -990,8 +991,8 @@ int _printEntries(DWORD ptr) {
     LGA_LOGGER_ERROR("[_printEntries] couldnt read the entry");
     return FAILED;
   }
-
-  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+  int i = 0;
+  for (i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[_printEntries] couldnt get the register file");
       return FAILED;
@@ -1034,8 +1035,8 @@ int getDataFromDisk(char *buffer, int start, int dataSize, char* diskBuffer, int
     LGA_LOGGER_ERROR("[getDataSector] DATA size greater than SECTOR size");
     return FAILED;
   }
-
-  for (int i=0; i < dataSize; i++) {
+  int i = 0;
+  for (i=0; i < dataSize; i++) {
     buffer[i] = diskBuffer[start + i];
   }
   //LGA_LOGGER_DEBUG("[getDataSector] Successfully");
@@ -1120,9 +1121,9 @@ int _getFileInode(DWORD ptr, char* filename, FileRecord * fileInode,int *positio
     LGA_LOGGER_ERROR("[_getFileInode] couldnt read the entry");
     return FAILED;
   }
-
+  int i = 0;
   //Le de registro em registro dentro do buffer
-  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+  for ( i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[_getFileInode] couldnt get the register file");
       return FAILED;
@@ -1187,8 +1188,8 @@ int _getFileInodeDoubleInd(DWORD doubleIndPtr, char* filename, FileRecord * file
     LGA_LOGGER_ERROR("[_getFileInodeDoubleInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_getFileInodeDoubleInd] Couldnt getData");
       return FAILED;
@@ -1241,7 +1242,8 @@ DWORD _getDirFilenameInode(DWORD ptr, char* filename) {
   }
 
   //Le de registro em registro dentro do buffer
-  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+  int i = 0;
+  for (i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[_getDirFilenameInode] couldnt get the register file");
       return (DWORD) INVALID_PTR;
@@ -1532,8 +1534,8 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
     LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     LGA_LOGGER_DEBUG("[singleIndGetPos] Getting Data");
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[singleIndGetPos] Couldnt getData");
@@ -1631,8 +1633,8 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
     LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     LGA_LOGGER_DEBUG("[doubleIndGetPos] Getting Data");
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[doubleIndGetPos] Couldnt getData");
@@ -1716,8 +1718,9 @@ int singleIndPrint(DWORD singleIndPtr) {
     return FAILED;
   }
 
+  int i = 0;
   // Le cada ponteiro do bloco de semi indireção
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for(i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[singleIndPrint] Couldnt getData");
       return FAILED;
@@ -1744,9 +1747,9 @@ int doubleIndPrint(DWORD doubleIndPtr) {
     LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt read");
     return FAILED;
   }
-
+  int i = 0;
   // Le cada ponteiro de indireção do bloco
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt getData");
       return FAILED;
@@ -1775,8 +1778,9 @@ int singleIndInvalidate(DWORD singleIndPtr, int pos, int offset) {
     return FAILED;
   }
 
+  int i = 0;
   // Le cada ponteiro do bloco de semi indireção
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for(i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[singleIndPrint] Couldnt getData");
       return FAILED;
@@ -1804,9 +1808,9 @@ int doubleIndInvalidate(DWORD doubleIndPtr, int pos) {
     LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt read");
     return FAILED;
   }
-
+  int i = 0;
   // Le cada ponteiro de indireção do bloco
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[doubleIndPrint] Couldnt getData");
       return FAILED;
@@ -1826,8 +1830,8 @@ int doubleIndInvalidate(DWORD doubleIndPtr, int pos) {
 void printBlock(DWORD blockPos) {
   char block[BLOCK_SIZE_BYTES];
   readBlock(blockPos, block, BLOCK_SIZE_BYTES);
-
-  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {
+  int i = 0;
+  for (i = 0; i < BLOCK_SIZE_BYTES; i++) {
     printf("%d ",block[i] );
   }
   printf("\n");
@@ -1836,7 +1840,8 @@ void printBlock(DWORD blockPos) {
 int cleanBlock(DWORD blockPos) {
   char block[BLOCK_SIZE_BYTES];
 
-  for (int i = 0; i < BLOCK_SIZE_BYTES; i++) {
+  int i = 0;
+  for ( i = 0; i < BLOCK_SIZE_BYTES; i++) {
     block[i] = 0;
   }
 
@@ -1859,8 +1864,8 @@ int _removeInode_SingleInd(DWORD singleIndPtr) {
     LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for(  i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
       return FAILED;
@@ -1889,7 +1894,7 @@ int _removeInode_DoubleInd(DWORD doubleIndPtr) {
     LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt read");
     return FAILED;
   }
-
+  int i = 0;
   for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt getData");
@@ -2012,8 +2017,8 @@ int _removeFileRecord_SingleInd(DWORD singleIndPtr, char* name) {
     LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
       return FAILED;
@@ -2042,8 +2047,8 @@ int _removeFileRecord_DoubleInd(DWORD doubleIndPtr, char* name) {
     LGA_LOGGER_ERROR("[_removeFileRecord_DoubleInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeFileRecord_DoubleInd] Couldnt getData");
       return FAILED;
@@ -2072,9 +2077,9 @@ int isEmptyFileRecord(DWORD ptr) {
     LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt read the entry");
     return FAILED;
   }
-
+  int i = 0;
   //Le de registro em registro dentro do buffer
-  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+  for ( i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt get the register file");
       return FAILED;
@@ -2096,8 +2101,8 @@ int isEmptyPtr(DWORD ptr) {
     LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeInode_SingleInd] Couldnt getData");
       return FAILED;
@@ -2176,9 +2181,9 @@ int _isEmptyFile_SingleInd(DWORD singleIndPtr) {
     LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt read");
     return FAILED;
   }
-
+  int i = 0;
   // Le cada ponteiro do bloco de semi indireção
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_isEmptyFile_SingleInd] Couldnt getData");
       return FAILED;
@@ -2218,9 +2223,9 @@ int _isEmptyFile_DoubleInd(DWORD doubleIndPtr) {
     LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt read");
     return FAILED;
   }
-
+  int i = 0;
   // Le cada ponteiro do bloco de semi indireção
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_isEmptyFile_DoubleInd] Couldnt getData");
       return FAILED;
@@ -2263,7 +2268,8 @@ void printBitmap(int BITMAP_TYPE, int MAXSIZE, int isInode ){
 void printQuantInode() {
   int maxInodes = superBlock.freeInodeBitmapSize * BLOCK_SIZE_BYTES;
   int iFree=0, iBusy=0, error=0;
-  for(int i = 0; i < maxInodes; i++) {
+    int i = 0;
+  for(i = 0; i < maxInodes; i++) {
     if (getBitmap2(INODE_TYPE, i) == INODE_FREE) {
       iFree++;
     } else if (getBitmap2(INODE_TYPE, i) == INODE_BUSY) {
@@ -2278,8 +2284,8 @@ void printQuantInode() {
 void printQuantBlock() {
   int maxBlocks = superBlock.freeBlocksBitmapSize * BLOCK_SIZE_BYTES;
   int blockFree=0, blockBusy=0, error=0;
-
-  for(int i = 0; i < maxBlocks; i++) {
+  int i = 0;
+  for(i = 0; i < maxBlocks; i++) {
     if (getBitmap2(BLOCK_TYPE, i) == BLOCK_FREE) {
       blockFree++;
     } else if (getBitmap2(BLOCK_TYPE, i) == BLOCK_BUSY) {
@@ -2606,8 +2612,8 @@ int readContentOnDisk(Inode * fileInode, int *CP, char * content, int size){
 
 int cleanIndBlock(DWORD ptr){
   DWORD block[BLOCK_SIZE_BYTES/sizeof(DWORD)];
-
-  for (int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i = 0;
+  for (i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     block[i] = INVALID_PTR;
   }
 
