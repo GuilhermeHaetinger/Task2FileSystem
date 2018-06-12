@@ -4,11 +4,18 @@ SRC_DIR=../src
 FRS_DAT=../fresh_dat
 TST_DIR=./
 BUILD_DIR=build
+OBJ=$(wildcard $(TST_DIR)/*.c)
 
 resetDatTest:
 	cp $(FRS_DAT)/t2fs_disk.dat ./
 fullDatTest:
 	cp $(FRS_DAT)/t2fs_disk_sing_full.dat ./t2fs_disk.dat
+
+all:
+	$(foreach file, $(OBJ),$(CC) $(file) -L../lib -lt2fs -lm -Wall -o $(file:.c=).exe;)
+
+clean:
+	rm -rf *.o *~ build *.exe
 
 create2Test:
 	rm -rf build

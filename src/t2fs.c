@@ -689,7 +689,7 @@ int rmdir2 (char *pathname){
       startingDir = 1;
     }
     //Caso tente deletar . ou ..
-    else if (strcmp(pathList[words-1],".") == 0 || strcmp(pathList[words-1],"..") == 0 ) {
+    if (strcmp(pathList[words-1],".") == 0 || strcmp(pathList[words-1],"..") == 0 ) {
       getInode(currentInodeNumber, (char * )&openDirectory);
       openDirectoryFileRecord = currentDirectoryFileRecord;
       freeList(&pathList,  words);
@@ -743,14 +743,6 @@ int rmdir2 (char *pathname){
       return FAILED;
     }
 
-
-    //TODO
-    //FIXME liberar bloco do dataPtr[0]
-    {
-      //TODO pegar dataPtr[0] e liberar bloco e limpar se precisar os DWORD 0
-      //TODO setar bitmap de bloco pra 0 desse mesmo bloco
-
-    }
 
     //Grava no disco em seu respectivo bloco o record com TYPEVAL_INVALIDO para setar como livre para ser usado
     record.TypeVal = TYPEVAL_INVALIDO;

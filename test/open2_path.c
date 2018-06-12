@@ -7,7 +7,6 @@
 
 int main(){
     char * filename = "filename";
-    char * filename2 = "filename2";
 
     //Cria primeiro diretorio
     LGA_LOGGER_TEST("Creating Directory1 on root directory");

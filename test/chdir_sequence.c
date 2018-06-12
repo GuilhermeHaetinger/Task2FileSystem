@@ -10,7 +10,6 @@ int main(){
     char * pathname = "Directory1";
     char * pathname2 = "Directory2";
     char * filename = "Arquivo1";
-    char getcw[10];
 
     //Cria primeiro diretorio
     LGA_LOGGER_TEST("Creating directory on root directory");

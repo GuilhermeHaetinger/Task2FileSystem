@@ -8,7 +8,6 @@
 int main(){
 
     initializeSuperBlock();
-    int a;
     printQuantBlock();
     printQuantInode();
     char textToWrite[2 * BLOCK_SIZE_BYTES +  (BLOCK_SIZE_BYTES / sizeof(DWORD)) * BLOCK_SIZE_BYTES];
