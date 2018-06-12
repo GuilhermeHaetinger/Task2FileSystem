@@ -1154,8 +1154,8 @@ int _getFileInodeSingInd(DWORD singleIndPtr, char* filename, FileRecord * fileIn
     LGA_LOGGER_ERROR("[_getFileInodeSingInd] Couldnt read");
     return FAILED;
   }
-
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  int i;
+  for( i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_getFileInodeSingInd] Couldnt getData");
       return FAILED;
@@ -1895,7 +1895,7 @@ int _removeInode_DoubleInd(DWORD doubleIndPtr) {
     return FAILED;
   }
   int i = 0;
-  for(int i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
+  for(i = 0; i < BLOCK_SIZE_BYTES/sizeof(DWORD); i++) {
     if (getDataFromDisk(ptrBuffer, i*sizeof(DWORD), sizeof(DWORD), blockBuffer, BLOCK_SIZE_BYTES) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[_removeInode_DoubleInd] Couldnt getData");
       return FAILED;
@@ -1983,9 +1983,9 @@ int removeFileRecord_Simple(DWORD ptr, char* name) {
     LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt read the entry");
     return FAILED;
   }
-
+  int i ;
   //Le de registro em registro dentro do buffer
-  for (int i = 0; i < REGISTERS_PER_BLOCK; i++) {
+  for (i = 0; i < REGISTERS_PER_BLOCK; i++) {
     if (getRegisterFile(i, diskBuffer, BLOCK_SIZE_BYTES, registerBuffer) !=SUCCEEDED) {
       LGA_LOGGER_ERROR("[removeFileRecord_Simple] couldnt get the register file");
       return FAILED;
