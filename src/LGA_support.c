@@ -168,7 +168,7 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
   fileInode.dataPtr[0] = sectorPos;
-  fileInode.bytesFileSize +=  REGISTER_SIZE * 2 + sizeof(DWORD);
+  fileInode.bytesFileSize +=  REGISTER_SIZE * 2;
   fileInode.blocksFileSize = 1;
 
 	if(saveInode(file.inodeNumber, (char *)&fileInode) != 0){
@@ -315,8 +315,6 @@ int searchNewFileRecordPosition(DWORD *ptr,int *newBlock) {
     }
     setBitmap2(BLOCK_TYPE, *ptr , BLOCK_BUSY);
     openDirectory.blocksFileSize += 1;
-    openDirectory.bytesFileSize += sizeof(DWORD);
-
     *newBlock = 1;
   }
 
@@ -1522,7 +1520,6 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
     }
     setBitmap2(BLOCK_TYPE, *singleIndPtr, BLOCK_BUSY);
     openDirectory.blocksFileSize += 1;
-    openDirectory.bytesFileSize += sizeof(DWORD);
     return SECOND_REG + 1;
   }
 
@@ -1556,7 +1553,7 @@ int singleIndGetPos( DWORD *singleIndPtr, int *newBlock) {
         return FAILED;
       }
       setBitmap2(BLOCK_TYPE, newNewBlock, BLOCK_BUSY);
-      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD)); 
+      changeWriteBlock(*singleIndPtr, i*sizeof(DWORD), (char*)&newNewBlock, sizeof(DWORD));
       openDirectory.blocksFileSize += 1;
       openDirectory.bytesFileSize += sizeof(DWORD);
       try = i * REGISTERS_PER_BLOCK;
@@ -1622,7 +1619,6 @@ int doubleIndGetPos( DWORD *doubleIndPtr, int *newBlock) {
     }
     setBitmap2(BLOCK_TYPE, *doubleIndPtr, BLOCK_BUSY);
     openDirectory.blocksFileSize += 1;
-    openDirectory.bytesFileSize += sizeof(DWORD);
     return SINGLE_PTR + 1;
   }
 
@@ -2124,7 +2120,6 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
    if (result == C_TRUE) {
      ((Inode*)inode)->dataPtr[0] = INVALID_PTR;
     openDirectory.blocksFileSize -= 1;
-    openDirectory.bytesFileSize -= sizeof(DWORD);
 
      return SUCCEEDED;
    } else if (result == FAILED) {
@@ -2137,7 +2132,6 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->dataPtr[1],BLOCK_FREE);
      ((Inode*)inode)->dataPtr[1] = INVALID_PTR;
     openDirectory.blocksFileSize -= 1;
-    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
@@ -2150,7 +2144,6 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->singleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->singleIndPtr = INVALID_PTR;
     openDirectory.blocksFileSize -= 1;
-    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
@@ -2163,7 +2156,6 @@ int garbageCollector(DWORD inodePos, int fileRecordPtr) {
      setBitmap2(BLOCK_TYPE,((Inode*)inode)->doubleIndPtr,BLOCK_FREE);
      ((Inode*)inode)->doubleIndPtr = INVALID_PTR;
     openDirectory.blocksFileSize -= 1;
-    openDirectory.bytesFileSize -= sizeof(DWORD);
      return SUCCEEDED;
 
    } else if (result == FAILED) {
