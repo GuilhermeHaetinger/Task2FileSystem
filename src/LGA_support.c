@@ -223,6 +223,7 @@ int removeFileFromOpenFiles(FILE2 handler){
     openFiles[handler] = nullHandler;
 
     openFilesHandler--;
+    if (openFilesHandler < 0) openFilesHandler = 0;
     LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
     return SUCCEEDED;
 
@@ -920,6 +921,7 @@ int removeDirFromOpenDirs(DIR2 handler){
     openDirectories[handler] = closedHandler;
 
     openDirectoriesHandler--;
+    if (openDirectoriesHandler < 0) openDirectoriesHandler = 0;
     LGA_LOGGER_DEBUG("Handler decreased and position set to NULL");
     return SUCCEEDED;
 
@@ -1277,7 +1279,6 @@ FILE2 findProperPositionOnOpenFiles(){
       return pos;
     }
   }
-  printf("openfilehandler>>> %d\n\n\n", openFilesHandler);
   LGA_LOGGER_ERROR("couldnt find proper position");
   return FAILED;
 }
