@@ -387,7 +387,12 @@ int read2 (FILE2 handle, char *buffer, int size){
 		LGA_LOGGER_ERROR("[write2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+  LGA_LOGGER_DEBUG("Entering write2");
+  if (handle < 0 || handle >= MAX_NUM_OF_OPEN_FILES)
+    return FAILED;
 
+  if (openFiles[handle].file.TypeVal == TYPEVAL_INVALIDO)
+    return FAILED;
   int CP = openFiles[handle].CP;
 
   if(openFiles[handle].CP == -1){
@@ -1002,6 +1007,12 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
 		LGA_LOGGER_ERROR("[getcw2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+  if (handle < 0)
+    return FAILED;
+
+  if (openDirectories[handle].entry == -1)
+    return FAILED;
+
   int num_of_entries = openDirectories[handle].dir.blocksFileSize * REGISTERS_PER_BLOCK;
 	if(openDirectories[handle].entry == num_of_entries - 1){
 		LGA_LOGGER_ERROR("[readdir2] Directory has run out of entries");
@@ -1050,6 +1061,12 @@ int closedir2 (DIR2 handle){
 		LGA_LOGGER_ERROR("[getcw2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+  if (handle < 0)
+    return FAILED;
+
+  if (openDirectories[handle].entry == -1)
+    return FAILED;
+    
 	if(removeDirFromOpenDirs(handle) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[closedir2] Dir couldn't be closed");
 		return FAILED;
