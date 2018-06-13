@@ -8,7 +8,8 @@
 int main(){
   char buffer[80];
   int handler;
-  for (int i = 0; i < 15000; i ++) {
+  int i;
+  for ( i = 0; i < 15000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = create2(buffer);
 

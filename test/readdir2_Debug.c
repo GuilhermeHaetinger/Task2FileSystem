@@ -27,7 +27,8 @@ int main () {
 
   char buffer[80];
   int handler;
-  for (int i = 0; i < 1000; i ++) {
+  int i;
+  for ( i = 0; i < 1000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = create2(buffer);
     if (handler < 0) {
@@ -56,7 +57,7 @@ int main () {
 
   LGA_LOGGER_TEST("Reading dir all files");
 
-  for(int i =0; i < 1000; i++) {
+  for( i =0; i < 1000; i++) {
     if (readdir2(dirHandle, &entry) < 0) {
       LGA_LOGGER_ERROR("readdir2 Failed");
       break;
@@ -76,7 +77,7 @@ int main () {
 
   LGA_LOGGER_TEST("Deleting all files");
 
-  for (int i = 0; i < 1000; i ++) {
+  for ( i = 0; i < 1000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = delete2(buffer);
     if (handler < 0) {

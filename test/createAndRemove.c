@@ -8,7 +8,8 @@
 int main(){
   char buffer[80];
   int handler;
-  for (int i = 0; i < 2000; i ++) {
+  int i;
+  for ( i = 0; i < 2000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = create2(buffer);
 
@@ -22,7 +23,7 @@ int main(){
     }
   }
 
-  for (int i = 0; i < 2000; i ++) {
+  for ( i = 0; i < 2000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     if (delete2(buffer) < 0) {
       LGA_LOGGER_ERROR("Delete2 Failed");
@@ -31,7 +32,7 @@ int main(){
     }
   }
 
-  for (int i = 0; i < 1000; i ++) {
+  for ( i = 0; i < 1000; i ++) {
     snprintf(buffer, 80, "queijos%d.txt",i);
     handler = create2(buffer);
 
