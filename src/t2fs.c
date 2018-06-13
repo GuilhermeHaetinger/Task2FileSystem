@@ -497,6 +497,12 @@ int truncate2 (FILE2 handle){
 		LGA_LOGGER_ERROR("[truncate2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+	if (handle < 0 || handle >= MAX_NUM_OF_OPEN_FILES)
+    return FAILED;
+
+  if (openFiles[handle].file.TypeVal == TYPEVAL_INVALIDO)
+    return FAILED;
+	
 	if(openFiles[handle].CP == -1){
 		LGA_LOGGER_ERROR("[truncate2]There is nothing to remove from CP on");
 		return FAILED;
