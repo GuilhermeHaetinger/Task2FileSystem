@@ -429,7 +429,14 @@ Saï¿½da:	Se a operaï¿½ï¿½o foi realizada com sucesso, a funï¿½ï¿½o retorna o nï¿
 int write2 (FILE2 handle, char *buffer, int size){
 
   LGA_LOGGER_DEBUG("Entering write2");
+  if (handle < 0 || handle >= MAX_NUM_OF_OPEN_FILES) 
+    return FAILED;
+
+  if (openFiles[handle].file.TypeVal == TYPEVAL_INVALIDO)
+    return FAILED;
+
 	int CP = openFiles[handle].CP;
+
 	if(initializeSuperBlock() != 0){
 		LGA_LOGGER_ERROR("[write2] SuperBlock not properly initiated");
 		return FAILED;
