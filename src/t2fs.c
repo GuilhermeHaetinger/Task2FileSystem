@@ -756,10 +756,6 @@ int rmdir2 (char *pathname){
   	}
     freeList(&pathList,  words);
 
-    //TODO blocksFileSize e bytesFileSize de um diretorio
-    openDirectory.blocksFileSize -= 1;
-    openDirectory.bytesFileSize -= REGISTER_SIZE;
-
     if (removeInode(record.inodeNumber) != SUCCEEDED) {
       LGA_LOGGER_ERROR("[rmdir2] Couldnt remove inode");
       getInode(currentInodeNumber, (char * )&openDirectory);
