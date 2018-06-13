@@ -211,7 +211,6 @@ int delete2 (char *filename){
     //Caso tente se dar rmdir pra arquivo
     if (record.TypeVal != TYPEVAL_REGULAR) {
       getInode(currentInodeNumber, (char * )&openDirectory);
-      printf("%s\n","arquivo NAO!" );
       openDirectoryFileRecord = currentDirectoryFileRecord;
       return FAILED;
     }
@@ -401,7 +400,6 @@ int read2 (FILE2 handle, char *buffer, int size){
     return FAILED;
   }
 
-  printf("%d\n\n", fileInode.bytesFileSize);
   if(fileInode.bytesFileSize <= openFiles[handle].CP){
     LGA_LOGGER_LOG("Nothing to read here");
     return 0;
