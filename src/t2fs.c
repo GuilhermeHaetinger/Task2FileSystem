@@ -358,6 +358,12 @@ int close2 (FILE2 handle){
 		LGA_LOGGER_ERROR("[write2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+  if (handle < 0 || handle >= MAX_NUM_OF_OPEN_FILES)
+    return FAILED;
+
+  if (openFiles[handle].file.TypeVal == TYPEVAL_INVALIDO)
+    return FAILED;
+    
   LGA_LOGGER_DEBUG("Entering close2");
 	if(removeFileFromOpenFiles(handle) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[close2] File couldn't be closed");
