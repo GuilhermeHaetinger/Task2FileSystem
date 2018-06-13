@@ -17,6 +17,8 @@ int main(){
 
     inodeWritingTest();
     blockWritingTest();
+
+    return 0;
 }
 
 int inodeWritingTest(){

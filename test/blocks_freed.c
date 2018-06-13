@@ -144,4 +144,5 @@ int main(){
   LGA_LOGGER_TEST("Printando fill debug Bitmap de block:\n");
   printBitmap(BLOCK_TYPE, 100, 0 );
   LGA_LOGGER_TEST("Fim print fill debug Bitmap de block \n");
+  return 0;
 }

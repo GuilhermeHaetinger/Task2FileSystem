@@ -35,4 +35,5 @@ int main(){
   getDataFromDisk(ptr, 0, sizeof(DWORD), block, 1024);
   puts("====");
   printBlock(*(DWORD*)ptr);
+  return 0;
 }

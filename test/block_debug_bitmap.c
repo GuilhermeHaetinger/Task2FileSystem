@@ -16,5 +16,5 @@ int main(){
   rmdir2("/Diretorio1");
   printAllEntries(openDirectory);
   printBitmap(BLOCK_TYPE, 100, 1 );
-
+  return 0;
 }

@@ -95,5 +95,5 @@ int main(){
   LGA_LOGGER_TEST("mkdir SUCCEEDED");
   printAllEntries(openDirectory);
 
-
+  return 0;
   }

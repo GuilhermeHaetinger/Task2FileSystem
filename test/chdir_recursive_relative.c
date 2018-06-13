@@ -103,5 +103,5 @@ int main(){
     }
     LGA_LOGGER_TEST("chdir SUCCEEDED");
     printAllEntries(openDirectory);
-
+    return 0;
 }

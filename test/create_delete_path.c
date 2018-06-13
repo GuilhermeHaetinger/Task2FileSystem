@@ -83,5 +83,6 @@ int main(){
   printAllEntries(openDirectory);
 
   // /printAllEntries(openDirectory);
+  return 0;
 
   }

@@ -49,4 +49,5 @@ int main(){
   printAllEntries(openDirectory);
   printBlock(openDirectory.dataPtr[0]);
   puts("====");
+  return 0;
 }
