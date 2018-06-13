@@ -163,10 +163,10 @@ int createDirectoryInode(FileRecord file, int fatherInodeNumber) {
   int sectorPos = searchBitmap2(BITMAP_DADOS, 0);
 
   char registersData[REGISTER_SIZE * 2];
-  concatCustom(registersData, 0, (char*)&dot, REGISTER_SIZE);
-  concatCustom(registersData, REGISTER_SIZE, (char*)&dotdot, REGISTER_SIZE);
-  writeBlock(sectorPos, registersData, REGISTER_SIZE * 2);
 
+  cleanBlock(sectorPos);
+  changeWriteBlock(sectorPos, 0,(char*)&dot, REGISTER_SIZE);
+  changeWriteBlock(sectorPos, REGISTER_SIZE,(char*)&dotdot, REGISTER_SIZE );
   fileInode.dataPtr[0] = sectorPos;
   fileInode.bytesFileSize +=  REGISTER_SIZE * 2;
   fileInode.blocksFileSize = 1;
