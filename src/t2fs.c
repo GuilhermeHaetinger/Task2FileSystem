@@ -535,6 +535,12 @@ int seek2 (FILE2 handle, DWORD offset){
 		LGA_LOGGER_ERROR("[truncate2] SuperBlock not properly initiated");
 		return FAILED;
 	}
+  if (handle < 0 || handle >= MAX_NUM_OF_OPEN_FILES)
+    return FAILED;
+
+  if (openFiles[handle].file.TypeVal == TYPEVAL_INVALIDO)
+    return FAILED;
+    
 	Inode fileInode;
 	if(getInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
 		LGA_LOGGER_ERROR("[seek2] Not able to get file's inode");
