@@ -11,7 +11,6 @@
 #include "../include/bitmap2.h"
 
 int openFilesHandler       = 0;
-int openDirHandler         = 0;
 int openDirectoriesHandler = 0;
 int INODE_SECTOR_INDEX     = 0;
 int INODE_PER_SECTOR       = 0;
@@ -893,11 +892,6 @@ int setNewOpenDirectory(char * directoryName){
 }
 
 DIR2 addDirToOpenDirs(Inode dir){
-  if(openDirHandler >= MAX_NUM_OF_OPEN_DIRECTORIES){
-    LGA_LOGGER_IMPORTANT("[addDirToOpenDirs]Directory won't be added to vector since it's full");
-    return FAILED;
-  }
-
   DIR2 available_pos = findProperPositionOnOpenDirectories();
   LGA_LOGGER_LOG("[addDirToOpenDirs]directory being added");
 
@@ -907,14 +901,14 @@ DIR2 addDirToOpenDirs(Inode dir){
   openDirectories[available_pos] = handler;
 
   LGA_LOGGER_LOG("[addDirToOpenDirs]handler being increased");
-  openDirHandler++;
+  openDirectoriesHandler++;
 
   return available_pos;
 
 }
 
 int removeDirFromOpenDirs(DIR2 handler){
-  if(handler < MAX_NUM_OF_OPEN_DIRECTORIES && handler >= 0){
+  if(handler >= 0){
     directoryHandler closedHandler;
     closedHandler.dir = closedDir;
     closedHandler.entry = -1;
@@ -1286,7 +1280,7 @@ FILE2 findProperPositionOnOpenFiles(){
 DIR2 findProperPositionOnOpenDirectories(){
   LGA_LOGGER_DEBUG("entered find proper open dir position");
   int pos;
-  for(pos = 0; pos <= openDirHandler; pos++){
+  for(pos = 0; pos <= openDirectoriesHandler; pos++){
     if(openDirectories[pos].entry == -1){
       return pos;
     }
