@@ -451,7 +451,9 @@ int write2 (FILE2 handle, char *buffer, int size){
 		return FAILED;
 	}
 	openFiles[handle].CP = CP + written;
-	fileInode.bytesFileSize += written;
+  if (CP + written > fileInode.bytesFileSize) {
+	 fileInode.bytesFileSize += (CP + written - fileInode.bytesFileSize);
+  }
 
   if(setInode(openFiles[handle].file.inodeNumber, (char*)&fileInode) != SUCCEEDED){
     LGA_LOGGER_ERROR("[write2] Couldnt save inode");
